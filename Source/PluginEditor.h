@@ -12,8 +12,8 @@ namespace col
     const juce::Colour menuBg   { 0xf0500805 };
 }
 
-// Knob style for previews: 0 = aluminium, 1 = cream, 2 = red cap.
-inline int gKnobStyle = 0;
+// Knob style: 0 = aluminium, 1 = cream (default), 2 = red cap.
+inline int gKnobStyle = 1;
 
 class ArpLookAndFeel : public juce::LookAndFeel_V4
 {
