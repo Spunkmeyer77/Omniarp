@@ -12,7 +12,7 @@ Point<float> polar (Point<float> c, float r, float a) { return { c.x + r * std::
 Font labelFont (float h) { return Font (FontOptions (h, Font::bold)).withExtraKerningFactor (0.04f); }
 
 // Shared red LED screen with glowing text and a dropdown marker.
-void drawLed (Graphics& g, Rectangle<float> b, const String& text)
+void drawLed (Graphics& g, Rectangle<float> b, const String& text, bool marker = true)
 {
     g.setColour (Colours::black);
     g.fillRoundedRectangle (b, 5.0f);
@@ -21,11 +21,12 @@ void drawLed (Graphics& g, Rectangle<float> b, const String& text)
                                        tross::col::ledBg.darker (0.5f), in.getCentreX(), in.getBottom(), false));
     g.fillRoundedRectangle (in, 4.0f);
     g.setFont (Font (FontOptions (24.8f)).withExtraKerningFactor (0.05f));
-    const auto textArea = in.withTrimmedLeft (4).withTrimmedRight (14);
+    const auto textArea = marker ? in.withTrimmedLeft (4).withTrimmedRight (14) : in;
     g.setColour (tross::col::ledRed.withAlpha (0.35f));
     g.drawText (text, textArea.translated (0, 1).expanded (1), Justification::centred, false);
     g.setColour (tross::col::ledRed);
     g.drawText (text, textArea, Justification::centred, false);
+    if (! marker) return;
     Path tri;
     const float tx = in.getRight() - 12, ty = in.getBottom() - 10;
     tri.addTriangle (tx - 5, ty, tx + 5, ty, tx, ty + 6);
@@ -132,9 +133,10 @@ void ArpLookAndFeel::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area,
     g.fillRect (r.getX(), r.getBottom() - 1, r.getWidth(), 1);
 }
 
-void ArpLookAndFeel::getIdealPopupMenuItemSize (const String&, bool isSeparator, int, int& w, int& h)
+void ArpLookAndFeel::getIdealPopupMenuItemSize (const String& text, bool isSeparator, int, int& w, int& h)
 {
     w = 300; h = isSeparator ? 12 : 40;
+    if (text.length() <= 3) { w = 74; h = 36; }   // transpose grid
 }
 
 Font ArpLookAndFeel::getPopupMenuFont() { return Font (FontOptions (22.0f)).withExtraKerningFactor (0.05f); }
@@ -254,50 +256,87 @@ void ScaleDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w
 }
 
 //==============================================================================
-TransposeDisplay::TransposeDisplay (ArpEngine& e, RangedAudioParameter& z, RangedAudioParameter& t)
-    : engine (e),
-      zoneAtt   (z, [this] (float v) { zone   = roundToInt (v); repaint(); if (onSettingsChanged) onSettingsChanged(); }),
-      timingAtt (t, [this] (float v) { timing = roundToInt (v); repaint(); if (onSettingsChanged) onSettingsChanged(); })
+TransposeDisplay::TransposeDisplay (RangedAudioParameter& p)
+    : att (p, [this] (float v) { value = roundToInt (v); repaint(); })
 {
-    zoneAtt.sendInitialUpdate();
-    timingAtt.sendInitialUpdate();
+    att.sendInitialUpdate();
     setMouseCursor (MouseCursor::PointingHandCursor);
-    startTimerHz (15);
 }
 
-void TransposeDisplay::timerCallback()
+void TransposeDisplay::set (int v)
 {
-    const int v = engine.transposeShown.load();
-    if (v != shown) { shown = v; repaint(); }
+    v = jlimit (-12, 12, v);
+    if (v != value) att.setValueAsCompleteGesture ((float) v);
 }
 
 void TransposeDisplay::paint (Graphics& g)
 {
-    const auto text = zone == 0 && shown == 0 ? String ("OFF")
-                                              : (shown > 0 ? "+" + String (shown) : String (shown));
-    drawLed (g, getLocalBounds().toFloat(), text);
+    auto b = getLocalBounds().toFloat();
+    drawLed (g, b, value > 0 ? "+" + String (value) : String (value), false);
+
+    // hardware-style arrows at both ends
+    auto arrow = [&] (float cx, bool left)
+    {
+        Path p;
+        const float cy = b.getCentreY();
+        if (left) p.addTriangle (cx + 4, cy - 6, cx + 4, cy + 6, cx - 4, cy);
+        else      p.addTriangle (cx - 4, cy - 6, cx - 4, cy + 6, cx + 4, cy);
+        g.setColour (col::ledRed.withAlpha (value == (left ? -12 : 12) ? 0.25f : 0.85f));
+        g.fillPath (p);
+    };
+    arrow (b.getX() + 14, true);
+    arrow (b.getRight() - 14, false);
 }
 
-void TransposeDisplay::mouseDown (const MouseEvent&)
+void TransposeDisplay::mouseDown (const MouseEvent& e)
 {
-    PopupMenu zones, timings;
-    const auto zn = zoneNames(), tn = timingNames();
-    for (int i = 0; i < zn.size(); ++i)
-        zones.addItem (100 + i, i == 0 ? String ("OFF") : "KEYS BELOW " + zn[i], true, i == zone);
-    for (int i = 0; i < tn.size(); ++i)
-        timings.addItem (200 + i, tn[i], true, i == timing);
+    if (e.x < 26)               { set (value - 1); return; }
+    if (e.x > getWidth() - 26)  { set (value + 1); return; }
 
+    if (e.getNumberOfClicks() > 1) { gridPending = false; set (0); return; }   // double-click = 0
+
+    // wait a moment so a double-click can reset instead of opening the grid
+    gridPending = true;
+    Component::SafePointer<TransposeDisplay> safe (this);
+    Timer::callAfterDelay (MouseEvent::getDoubleClickTimeout() + 20, [safe]
+    {
+        if (safe != nullptr && safe->gridPending) { safe->gridPending = false; safe->showGrid(); }
+    });
+}
+
+void TransposeDisplay::showGrid()
+{
+    // 5 columns: -12..-8 | -7..-3 | -2..+2 | +3..+7 | +8..+12
     PopupMenu m;
     m.setLookAndFeel (&getLookAndFeel());
-    m.addSubMenu ("ZONE:  " + zn[zone], zones);
-    m.addSubMenu ("TIMING:  " + tn[timing], timings);
+    for (int v = -12; v <= 12; ++v)
+    {
+        if (v > -12 && (v + 12) % 5 == 0) m.addColumnBreak();
+        m.addItem (100 + v, v > 0 ? "+" + String (v) : String (v), true, v == value);
+    }
+    m.showMenuAsync (PopupMenu::Options().withTargetComponent (this),
+                     [this] (int r) { if (r > 0) set (r - 100); });
+}
 
-    m.showMenuAsync (PopupMenu::Options().withTargetComponent (this).withPreferredPopupDirection (PopupMenu::Options::PopupDirection::downwards),
-                     [this] (int r)
-                     {
-                         if (r >= 200)      timingAtt.setValueAsCompleteGesture ((float) (r - 200));
-                         else if (r >= 100) zoneAtt.setValueAsCompleteGesture ((float) (r - 100));
-                     });
+void TransposeDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
+{
+    set (value + (w.deltaY > 0 ? 1 : -1));
+}
+
+//==============================================================================
+void LedToggle::paintButton (Graphics& g, bool over, bool)
+{
+    auto b = getLocalBounds().toFloat();
+    const bool on = getToggleState();
+    auto led = Rectangle<float> (10, 10).withCentre ({ b.getX() + 7, b.getCentreY() });
+    g.setColour (Colours::black);
+    g.fillEllipse (led.expanded (2));
+    if (on) { g.setColour (col::ledRed.withAlpha (0.35f)); g.fillEllipse (led.expanded (4)); }
+    g.setColour (on ? col::ledRed : col::ledBg.brighter (0.3f));
+    g.fillEllipse (led);
+    g.setColour (col::gold.withAlpha (over ? 1.0f : 0.85f));
+    g.setFont (labelFont (13));
+    g.drawText (getButtonText(), b.withTrimmedLeft (18), Justification::centredLeft);
 }
 
 //==============================================================================
@@ -331,14 +370,15 @@ MainPanel::MainPanel (OmniarpProcessor& p)
     : proc (p),
       algo (*p.apvts.getParameter ("algo")),
       scaleDisp (*p.apvts.getParameter ("key"), *p.apvts.getParameter ("scale")),
-      transposeDisp (p.engine, *p.apvts.getParameter ("tzone"), *p.apvts.getParameter ("ttiming"))
+      transposeDisp (*p.apvts.getParameter ("transpose"))
 {
     addAndMakeVisible (holdSwitch);
     holdAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "hold", holdSwitch);
     addAndMakeVisible (algo);
     addAndMakeVisible (scaleDisp);
     addAndMakeVisible (transposeDisp);
-    transposeDisp.onSettingsChanged = [this] { repaint(); };
+    addAndMakeVisible (inKey);
+    inKeyAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "inkey", inKey);
 
     addKnob (gate,      "gate",      "GATE",      {});
     addKnob (swing,     "swing",     "SWING",     {});
@@ -436,11 +476,7 @@ void MainPanel::paint (Graphics& g)
     g.drawText ("ALGORITHM", algo.getBounds().translated (0, algo.getHeight() + 4).withHeight (20), Justification::centredLeft);
     g.drawText ("SCALE", scaleDisp.getBounds().translated (0, scaleDisp.getHeight() + 4).withHeight (20), Justification::centredLeft);
     g.drawText ("TRANSPOSE", transposeDisp.getBounds().translated (0, transposeDisp.getHeight() + 6).withHeight (20).expanded (20, 0), Justification::centred);
-    g.setColour (col::gold.withAlpha (0.45f));
-    g.setFont (labelFont (11));
-    const auto info = transposeDisp.getZone() == 0 ? String ("KEY ZONE OFF")
-                    : "KEYS BELOW " + zoneNames()[transposeDisp.getZone()] + "  " + timingNames()[transposeDisp.getTiming()];
-    g.drawText (info, transposeDisp.getBounds().translated (0, -22).withHeight (16).expanded (30, 0), Justification::centred);
+
 
     // title (plug-in name only) + dimmed version
     g.setColour (col::gold);
@@ -471,6 +507,7 @@ void MainPanel::resized()
         k->slider.setBounds (Rectangle<int> (knob, knob).withCentre ({ firstX + gap * i++, cy }));
 
     transposeDisp.setBounds (Rectangle<int> (120, 40).withCentre ({ firstX + gap * i - 5, cy - 4 }));
+    inKey.setBounds (transposeDisp.getX() + 22, transposeDisp.getY() - 26, 90, 20);
 
     about.setBounds (getLocalBounds());
 }

@@ -62,21 +62,29 @@ private:
     int key = 0, scale = 0;
 };
 
-// Red LED readout of the keyboard transposition; click to set the zone and timing.
-class TransposeDisplay : public juce::Component, private juce::Timer
+// Red LED transpose screen: -12..+12. Arrows step by one, click the middle for a jump grid,
+// scroll to step, double-click to reset.
+class TransposeDisplay : public juce::Component
 {
 public:
-    TransposeDisplay (tross::ArpEngine&, juce::RangedAudioParameter& zone, juce::RangedAudioParameter& timing);
+    explicit TransposeDisplay (juce::RangedAudioParameter& transpose);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    int getZone() const   { return zone; }
-    int getTiming() const { return timing; }
-    std::function<void()> onSettingsChanged;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
-    void timerCallback() override;
-    tross::ArpEngine& engine;
-    juce::ParameterAttachment zoneAtt, timingAtt;
-    int zone = 0, timing = 0, shown = 0;
+    void set (int v);
+    void showGrid();
+    juce::ParameterAttachment att;
+    int value = 0;
+    bool gridPending = false;
+};
+
+// Small LED switch: "IN KEY".
+class LedToggle : public juce::Button
+{
+public:
+    explicit LedToggle (const juce::String& text) : juce::Button (text) { setClickingTogglesState (true); setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+    void paintButton (juce::Graphics&, bool over, bool down) override;
 };
 
 // Invisible click zone over the title that opens the About panel.
@@ -125,6 +133,8 @@ private:
     AlgoDisplay algo;
     ScaleDisplay scaleDisp;
     TransposeDisplay transposeDisp;
+    LedToggle inKey { "IN KEY" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inKeyAtt;
     Knob gate, swing, note, noteRpt, steps, oct, octRpt;
     TitleHotspot title;
     AboutPanel about;
