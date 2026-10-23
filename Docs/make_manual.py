@@ -30,7 +30,7 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.0.0")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.0.1")
     w = A4[0] - 30 * mm
     c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 190 / 1280, mask="auto")
     c.setFont("Helvetica-Bold", 12)
@@ -75,9 +75,9 @@ s += [Paragraph("Welcome", H1),
              ("Linux", "Extract <b>Omniarp-Linux.tar.gz</b> and copy Omniarp.vst3 to ~/.vst3 and Omniarp.lv2 to ~/.lv2.")],
             [28 * mm, doc.width - 28 * mm]),
       Paragraph("Setting up in your DAW", H1),
-      Paragraph("Omniarp is a MIDI effect: it produces notes, not sound. Put it before an instrument.", P),
-      table([("Ableton Live", "Drag Omniarp onto a MIDI track, then place your instrument after it on the same track."),
-             ("Logic Pro", "Load it in the MIDI FX slot of a software instrument track."),
+      Paragraph("Omniarp produces notes, not sound. It loads as an instrument that sends MIDI out, so you route its notes to the synth you want to play.", P),
+      table([("Ableton Live", "Put Omniarp on MIDI track 1 (it appears under Plug-Ins as an instrument; use the VST3). Create MIDI track 2 with your synth, set its MIDI From to track 1 and choose Omniarp, and set Monitor to In. Play or record on track 1."),
+             ("Logic Pro", "Load Omniarp as an instrument and route its MIDI output to another instrument track via the track's MIDI input."),
              ("Other hosts", "Insert it on an instrument track before the synth, or route its MIDI output to another track.")],
             [28 * mm, doc.width - 28 * mm]),
       PageBreak()]

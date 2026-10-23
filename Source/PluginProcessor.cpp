@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 
 OmniarpProcessor::OmniarpProcessor()
-    : AudioProcessor (BusesProperties()),
+    : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "STATE", createLayout())
 {
 }

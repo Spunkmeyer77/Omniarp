@@ -5,7 +5,7 @@ if(APPLE)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
 endif()
 
-project(Omniarp VERSION 1.0.0)
+project(Omniarp VERSION 1.0.1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -30,8 +30,8 @@ juce_add_plugin(Omniarp
     PLUGIN_CODE Omar
     PRODUCT_NAME "Omniarp"
     BUNDLE_ID com.ticcoross.omniarp
-    IS_SYNTH FALSE
-    IS_MIDI_EFFECT TRUE
+    IS_SYNTH TRUE
+    IS_MIDI_EFFECT FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
