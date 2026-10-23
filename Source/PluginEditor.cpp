@@ -20,11 +20,12 @@ void drawLed (Graphics& g, Rectangle<float> b, const String& text)
     g.setGradientFill (ColourGradient (tross::col::ledBg.brighter (0.15f), in.getCentreX(), in.getY(),
                                        tross::col::ledBg.darker (0.5f), in.getCentreX(), in.getBottom(), false));
     g.fillRoundedRectangle (in, 4.0f);
-    g.setFont (Font (FontOptions (in.getHeight() * 0.62f)).withExtraKerningFactor (0.05f));
+    g.setFont (Font (FontOptions (24.8f)).withExtraKerningFactor (0.05f));
+    const auto textArea = in.withTrimmedLeft (4).withTrimmedRight (14);
     g.setColour (tross::col::ledRed.withAlpha (0.35f));
-    g.drawText (text, in.translated (0, 1).expanded (1), Justification::centred);
+    g.drawText (text, textArea.translated (0, 1).expanded (1), Justification::centred, false);
     g.setColour (tross::col::ledRed);
-    g.drawText (text, in, Justification::centred);
+    g.drawText (text, textArea, Justification::centred, false);
     Path tri;
     const float tx = in.getRight() - 12, ty = in.getBottom() - 10;
     tri.addTriangle (tx - 5, ty, tx + 5, ty, tx, ty + 6);
@@ -216,7 +217,9 @@ ScaleDisplay::ScaleDisplay (RangedAudioParameter& k, RangedAudioParameter& s)
 void ScaleDisplay::paint (Graphics& g)
 {
     const auto scales = scaleNames();
-    const auto text = scale == 0 ? String ("OFF") : keyNames()[key] + " " + scales[jlimit (0, scales.size() - 1, scale)];
+    static const StringArray shortNames { "OFF", "MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXO",
+                                          "HARM MIN", "PENT MAJ", "PENT MIN", "BLUES" };
+    const auto text = scale == 0 ? String ("OFF") : keyNames()[key] + " " + shortNames[jlimit (0, shortNames.size() - 1, scale)];
     drawLed (g, getLocalBounds().toFloat(), text);
 }
 
@@ -251,6 +254,53 @@ void ScaleDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w
 }
 
 //==============================================================================
+TransposeDisplay::TransposeDisplay (ArpEngine& e, RangedAudioParameter& z, RangedAudioParameter& t)
+    : engine (e),
+      zoneAtt   (z, [this] (float v) { zone   = roundToInt (v); repaint(); if (onSettingsChanged) onSettingsChanged(); }),
+      timingAtt (t, [this] (float v) { timing = roundToInt (v); repaint(); if (onSettingsChanged) onSettingsChanged(); })
+{
+    zoneAtt.sendInitialUpdate();
+    timingAtt.sendInitialUpdate();
+    setMouseCursor (MouseCursor::PointingHandCursor);
+    startTimerHz (15);
+}
+
+void TransposeDisplay::timerCallback()
+{
+    const int v = engine.transposeShown.load();
+    if (v != shown) { shown = v; repaint(); }
+}
+
+void TransposeDisplay::paint (Graphics& g)
+{
+    const auto text = zone == 0 && shown == 0 ? String ("OFF")
+                                              : (shown > 0 ? "+" + String (shown) : String (shown));
+    drawLed (g, getLocalBounds().toFloat(), text);
+}
+
+void TransposeDisplay::mouseDown (const MouseEvent&)
+{
+    PopupMenu zones, timings;
+    const auto zn = zoneNames(), tn = timingNames();
+    for (int i = 0; i < zn.size(); ++i)
+        zones.addItem (100 + i, i == 0 ? String ("OFF") : "KEYS BELOW " + zn[i], true, i == zone);
+    for (int i = 0; i < tn.size(); ++i)
+        timings.addItem (200 + i, tn[i], true, i == timing);
+
+    PopupMenu m;
+    m.setLookAndFeel (&getLookAndFeel());
+    m.addSubMenu ("ZONE:  " + zn[zone], zones);
+    m.addSubMenu ("TIMING:  " + tn[timing], timings);
+
+    m.showMenuAsync (PopupMenu::Options().withTargetComponent (this).withPreferredPopupDirection (PopupMenu::Options::PopupDirection::downwards),
+                     [this] (int r)
+                     {
+                         if (r >= 200)      timingAtt.setValueAsCompleteGesture ((float) (r - 200));
+                         else if (r >= 100) zoneAtt.setValueAsCompleteGesture ((float) (r - 100));
+                     });
+}
+
+//==============================================================================
 void AboutPanel::paint (Graphics& g)
 {
     g.fillAll (Colours::black.withAlpha (0.72f));
@@ -280,12 +330,15 @@ void AboutPanel::paint (Graphics& g)
 MainPanel::MainPanel (OmniarpProcessor& p)
     : proc (p),
       algo (*p.apvts.getParameter ("algo")),
-      scaleDisp (*p.apvts.getParameter ("key"), *p.apvts.getParameter ("scale"))
+      scaleDisp (*p.apvts.getParameter ("key"), *p.apvts.getParameter ("scale")),
+      transposeDisp (p.engine, *p.apvts.getParameter ("tzone"), *p.apvts.getParameter ("ttiming"))
 {
     addAndMakeVisible (holdSwitch);
     holdAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "hold", holdSwitch);
     addAndMakeVisible (algo);
     addAndMakeVisible (scaleDisp);
+    addAndMakeVisible (transposeDisp);
+    transposeDisp.onSettingsChanged = [this] { repaint(); };
 
     addKnob (gate,      "gate",      "GATE",      {});
     addKnob (swing,     "swing",     "SWING",     {});
@@ -294,7 +347,6 @@ MainPanel::MainPanel (OmniarpProcessor& p)
     addKnob (steps,     "steps",     "STEPS",     {}, "OFF", "16");
     addKnob (oct,       "oct",       "OCT",       octNames());
     addKnob (octRpt,    "octRpt",    "OCT RPT",   { "1", "2", "3", "4", "5" });
-    addKnob (transpose, "transpose", "TRANSPOSE", {}, "-12", "+12");
 
     addAndMakeVisible (title);
     title.onClick = [this] { about.setVisible (true); about.toFront (false); };
@@ -311,7 +363,7 @@ MainPanel::MainPanel (OmniarpProcessor& p)
 
 std::vector<MainPanel::Knob*> MainPanel::knobs()
 {
-    return { &gate, &swing, &note, &noteRpt, &steps, &oct, &octRpt, &transpose };
+    return { &gate, &swing, &note, &noteRpt, &steps, &oct, &octRpt };
 }
 
 void MainPanel::addKnob (Knob& k, const String& id, const String& name, StringArray marks,
@@ -328,7 +380,6 @@ void MainPanel::addKnob (Knob& k, const String& id, const String& name, StringAr
     k.slider.setPopupDisplayEnabled (true, false, this);
     addAndMakeVisible (k.slider);
     k.att = std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, id, k.slider);
-    if (id == "transpose") k.slider.setDoubleClickReturnValue (true, 0.0);
 }
 
 void MainPanel::drawKnobLabels (Graphics& g, const Knob& k)
@@ -384,6 +435,12 @@ void MainPanel::paint (Graphics& g)
     g.setFont (labelFont (17));
     g.drawText ("ALGORITHM", algo.getBounds().translated (0, algo.getHeight() + 4).withHeight (20), Justification::centredLeft);
     g.drawText ("SCALE", scaleDisp.getBounds().translated (0, scaleDisp.getHeight() + 4).withHeight (20), Justification::centredLeft);
+    g.drawText ("TRANSPOSE", transposeDisp.getBounds().translated (0, transposeDisp.getHeight() + 6).withHeight (20).expanded (20, 0), Justification::centred);
+    g.setColour (col::gold.withAlpha (0.45f));
+    g.setFont (labelFont (11));
+    const auto info = transposeDisp.getZone() == 0 ? String ("KEY ZONE OFF")
+                    : "KEYS BELOW " + zoneNames()[transposeDisp.getZone()] + "  " + timingNames()[transposeDisp.getTiming()];
+    g.drawText (info, transposeDisp.getBounds().translated (0, -22).withHeight (16).expanded (30, 0), Justification::centred);
 
     // title (plug-in name only) + dimmed version
     g.setColour (col::gold);
@@ -399,19 +456,21 @@ void MainPanel::paint (Graphics& g)
 
 void MainPanel::resized()
 {
-    holdSwitch.setBounds (14, 52, 48, 120);
+    holdSwitch.setBounds (14, 46, 48, 112);
 
     // click zone = exactly the title lettering
     const auto titleW = roundToInt (GlyphArrangement::getStringWidth (labelFont (28), "OMNIARP"));
     title.setBounds (98, 12, titleW + 2, 30);
 
-    algo.setBounds (98, 52, 250, 46);
-    scaleDisp.setBounds (98, 128, 250, 46);
+    algo.setBounds (98, 52, 195, 40);
+    scaleDisp.setBounds (98, 122, 195, 40);
 
-    const int knob = 80, firstX = 450, gap = 150, cy = 104;
+    const int knob = 80, firstX = 390, gap = 150, cy = 100;
     int i = 0;
     for (auto* k : knobs())
         k->slider.setBounds (Rectangle<int> (knob, knob).withCentre ({ firstX + gap * i++, cy }));
+
+    transposeDisp.setBounds (Rectangle<int> (120, 40).withCentre ({ firstX + gap * i - 5, cy - 4 }));
 
     about.setBounds (getLocalBounds());
 }

@@ -30,9 +30,9 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.1.0")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.2.0")
     w = A4[0] - 30 * mm
-    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 230 / 1590, mask="auto")
+    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 210 / 1525, mask="auto")
     c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(A4[0] / 2, 30 * mm, "TICCO ROSS")
     c.setFont("Helvetica", 10)
@@ -82,7 +82,7 @@ s += [Paragraph("Welcome", H1),
             [28 * mm, doc.width - 28 * mm]),
       PageBreak()]
 
-s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 230 / 1590), Spacer(1, 8),
+s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 210 / 1525), Spacer(1, 8),
       table([("HOLD", "The blue switch latches the chord. With HOLD on, the arp keeps playing after you release the keys. "
                       "Play a new chord (after letting go of all keys) to replace it; keys added while others are still down join the chord. "
                       "Turning HOLD off releases any latched notes you are no longer holding."),
@@ -102,8 +102,11 @@ s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 
              ("OCT", "Octave range: 0 (played octave only), +1, +2, +3 (upwards), -1 (one octave down), "
                      "\u00b11 (one octave below, the played octave, then one above)."),
              ("OCT RPT", "How many times the whole pattern cycles in an octave before moving to the next octave (1 to 5)."),
-             ("TRANSPOSE", "Shifts everything Omniarp plays by -12 to +12 semitones, so you can keep one chord shape and move it. "
-                           "Double-click the knob to reset it to 0.")],
+             ("TRANSPOSE", "Keyboard transpose, made for playing live. Click the red TRANSPOSE display to set the ZONE (OFF, or keys "
+                           "below C1, C2, C3 or C4) and the TIMING. Keys below the split no longer join the arp: they transpose it. The C one "
+                           "octave below the split means no change, F above it +5, the A flat below it -4, and so on, so you jump straight to "
+                           "any interval. The transposition stays after you release the key. TIMING: INSTANT changes on the next step, "
+                           "NEXT BEAT or NEXT BAR wait for the beat or bar so changes land on the grid. The display shows the current transposition.")],
             [28 * mm, doc.width - 28 * mm]),
       Paragraph("Click the OMNIARP title to open the About panel; click anywhere on it to close it. Drag the bottom-right corner to resize the window (60% to 200%); the size is saved with your project.", P),
       PageBreak()]

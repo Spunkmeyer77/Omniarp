@@ -62,6 +62,23 @@ private:
     int key = 0, scale = 0;
 };
 
+// Red LED readout of the keyboard transposition; click to set the zone and timing.
+class TransposeDisplay : public juce::Component, private juce::Timer
+{
+public:
+    TransposeDisplay (tross::ArpEngine&, juce::RangedAudioParameter& zone, juce::RangedAudioParameter& timing);
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    int getZone() const   { return zone; }
+    int getTiming() const { return timing; }
+    std::function<void()> onSettingsChanged;
+private:
+    void timerCallback() override;
+    tross::ArpEngine& engine;
+    juce::ParameterAttachment zoneAtt, timingAtt;
+    int zone = 0, timing = 0, shown = 0;
+};
+
 // Invisible click zone over the title that opens the About panel.
 class TitleHotspot : public juce::Component
 {
@@ -82,7 +99,7 @@ public:
 class MainPanel : public juce::Component
 {
 public:
-    static constexpr int W = 1590, H = 230;
+    static constexpr int W = 1525, H = 210;
     explicit MainPanel (OmniarpProcessor&);
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -107,7 +124,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> holdAtt;
     AlgoDisplay algo;
     ScaleDisplay scaleDisp;
-    Knob gate, swing, note, noteRpt, steps, oct, octRpt, transpose;
+    TransposeDisplay transposeDisp;
+    Knob gate, swing, note, noteRpt, steps, oct, octRpt;
     TitleHotspot title;
     AboutPanel about;
     juce::Image texture;

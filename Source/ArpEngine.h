@@ -33,6 +33,11 @@ inline juce::StringArray octNames()
     return { "0", "+1", "+2", "+3", "-1", juce::String (juce::CharPointer_UTF8 ("\xc2\xb1" "1")) };   // last = "±1"
 }
 
+// Keyboard transpose zone: keys below the split transpose the arp. "C" one octave below the split = 0.
+inline juce::StringArray zoneNames()   { return { "OFF", "C1", "C2", "C3", "C4" }; }
+inline int zoneSplitNote (int zone)    { return zone <= 0 ? -1 : 24 + 12 * zone; }   // C1 = 36 (C3 = 60)
+inline juce::StringArray timingNames() { return { "INSTANT", "NEXT BEAT", "NEXT BAR" }; }
+
 inline juce::StringArray keyNames() { return { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }; }
 
 inline juce::StringArray scaleNames()
@@ -132,6 +137,7 @@ public:
         bool hold = false; int algo = 0; float gate = 0.5f, swing = 0.0f;
         int rate = 6, noteRpt = 1, octMode = 0, octRpt = 1;
         int transpose = 0, steps = 0, key = 0, scale = 0;   // steps 0 = full pattern
+        int zone = 0, timing = 0, beatsPerBar = 4;
         bool sameSequence (const Settings& o) const
         { return algo == o.algo && noteRpt == o.noteRpt && octMode == o.octMode && octRpt == o.octRpt
                  && key == o.key && scale == o.scale; }
@@ -144,10 +150,12 @@ public:
     std::array<std::atomic<int>, previewMax> preview {};   // note number, -1 = random, -2 = chord
     std::atomic<int> previewCount { 0 };
     std::atomic<int> previewTick { 0 };
+    std::atomic<int> transposeShown { 0 };   // current total transpose, for the panel readout
 
     void reset()
     {
         held.clear(); physical.clear(); sounding.clear(); seq.clear(); previewCount.store (0);
+        zoneTranspose = 0; pendingSet = false;
         seqPos = 0; lastTrigQ = -1.0e9; lastEndQ = -1.0e9; internalQ = 0.0; dirty = true;
     }
 
@@ -156,9 +164,26 @@ public:
     {
         juce::MidiBuffer out;
 
+        const double spqIn  = sampleRate * 60.0 / juce::jlimit (20.0, 999.0, bpm);
+        const double blockQ = playing ? hostQ : internalQ;
+        const int split = zoneSplitNote (s.zone);
+
         for (const auto m : midi)
         {
             const auto msg = m.getMessage();
+            if (split >= 0 && (msg.isNoteOn() || msg.isNoteOff()) && msg.getNoteNumber() < split)
+            {
+                // transpose zone: a key press sets the transposition, releasing it changes nothing
+                if (msg.isNoteOn())
+                {
+                    const double q = blockQ + m.samplePosition / spqIn;
+                    const double len = s.timing == 1 ? 1.0 : (s.timing == 2 ? (double) s.beatsPerBar : 0.0);
+                    pendingValue = juce::jlimit (-24, 24, msg.getNoteNumber() - (split - 12));
+                    pendingAtQ   = len > 0.0 ? std::ceil (q / len - 1.0e-6) * len : -1.0e9;
+                    pendingSet   = true;
+                }
+                continue;
+            }
             if (msg.isNoteOn())
             {
                 // With HOLD on, a new chord starts when a key is pressed after all keys were released.
@@ -190,6 +215,8 @@ public:
 
         if (! s.sameSequence (cached)) dirty = true;
         cached = s;
+        if (s.zone == 0) { zoneTranspose = 0; pendingSet = false; }
+        if (pendingSet && held.empty()) { zoneTranspose = pendingValue; pendingSet = false; }   // nothing playing: apply now
 
         const double spq    = sampleRate * 60.0 / juce::jlimit (20.0, 999.0, bpm);
         const double startQ = playing ? hostQ : internalQ;
@@ -218,6 +245,7 @@ public:
             if (t <= lastTrigQ + 1.0e-9) continue;
 
             lastTrigQ = t;
+            if (pendingSet && t >= pendingAtQ - 1.0e-6) { zoneTranspose = pendingValue; pendingSet = false; }
             const int pos = toSample (t);
             release (out, pos);
             trigger (out, pos);
@@ -225,6 +253,7 @@ public:
         }
 
         if (! sounding.empty() && offQ < endQ) release (out, toSample (offQ));
+        transposeShown.store (cached.transpose + zoneTranspose);
         midi.swapWith (out);
     }
 
@@ -288,7 +317,7 @@ private:
 
         auto play = [&] (const Held& h)
         {
-            const int n = h.note + 12 * st.oct + cached.transpose;
+            const int n = h.note + 12 * st.oct + cached.transpose + zoneTranspose;
             if (n < 0 || n > 127) return;
             out.addEvent (juce::MidiMessage::noteOn (h.channel, n, (juce::uint8) h.vel), pos);
             sounding.push_back ({ h.channel, n });
@@ -315,7 +344,7 @@ private:
         {
             const auto& st = seq[stepIndex (seqPos + i)];
             int v = st.idx;
-            if (st.idx >= 0) v = src[(size_t) juce::jmin (st.idx, (int) src.size() - 1)].note + 12 * st.oct + cached.transpose;
+            if (st.idx >= 0) v = src[(size_t) juce::jmin (st.idx, (int) src.size() - 1)].note + 12 * st.oct + cached.transpose + zoneTranspose;
             preview[(size_t) i].store (v, std::memory_order_relaxed);
         }
         previewCount.store (n);
@@ -333,7 +362,9 @@ private:
     std::vector<Step> seq;
     std::vector<Sound> sounding;
     juce::int64 seqPos = 0;
-    bool dirty = true, wasHold = false;
+    bool dirty = true, wasHold = false, pendingSet = false;
+    int zoneTranspose = 0, pendingValue = 0;
+    double pendingAtQ = 0.0;
     std::vector<int> physical;
     Settings cached;
     juce::Random rng;
