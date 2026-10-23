@@ -49,51 +49,86 @@ void ArpLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int w, int h, 
     const auto b = Rectangle<int> (x, y, w, h).toFloat();
     const auto c = b.getCentre();
     const float R = jmin (b.getWidth(), b.getHeight()) * 0.5f;
-
-    // drop shadow
-    g.setColour (Colours::black.withAlpha (0.55f));
-    g.fillEllipse (Rectangle<float> (R * 2.1f, R * 2.1f).withCentre (c.translated (0, R * 0.12f)));
-
-    // scalloped black skirt
-    Path skirt;
-    const int lobes = 9;
-    for (int i = 0; i <= 180; ++i)
-    {
-        const float a = MathConstants<float>::twoPi * (float) i / 180.0f;
-        const float r = R * (0.93f + 0.07f * std::cos (a * (float) lobes));
-        const auto p = polar (c, r, a);
-        i == 0 ? skirt.startNewSubPath (p) : skirt.lineTo (p);
-    }
-    skirt.closeSubPath();
-    g.setGradientFill (ColourGradient (Colour (0xff4a4a4e), c.x, c.y - R, Colour (0xff09090a), c.x, c.y + R, false));
-    g.fillPath (skirt);
-    g.setColour (Colours::white.withAlpha (0.12f));
-    g.strokePath (skirt, PathStrokeType (1.0f));
-
-    // chrome cap
-    const float cr = R * 0.66f;
-    auto cap = Rectangle<float> (cr * 2, cr * 2).withCentre (c);
-    ColourGradient chrome (Colour (0xfff4f4f6), c.x - cr * 0.3f, c.y - cr * 0.5f,
-                           Colour (0xff6c6e74), c.x + cr * 0.4f, c.y + cr, true);
-    chrome.addColour (0.45, Colour (0xffc7c9cf));
-    g.setGradientFill (chrome);
-    g.fillEllipse (cap);
-    // brushed rings
-    for (float r = cr * 0.2f; r < cr; r += 2.2f)
-    {
-        g.setColour (Colours::white.withAlpha (0.06f));
-        g.drawEllipse (Rectangle<float> (r * 2, r * 2).withCentre (c), 0.7f);
-    }
-    g.setColour (Colours::black.withAlpha (0.5f));
-    g.drawEllipse (cap, 1.2f);
-
-    // indicator dot on the skirt
     const float a = start + pos * (end - start);
-    const auto d = polar (c, R * 0.81f, a);
-    g.setColour (Colours::black.withAlpha (0.6f));
-    g.fillEllipse (Rectangle<float> (R * 0.2f, R * 0.2f).withCentre (d));
-    g.setColour (Colours::white);
-    g.fillEllipse (Rectangle<float> (R * 0.15f, R * 0.15f).withCentre (d));
+
+    // shadow on the black panel
+    g.setColour (Colours::black.withAlpha (0.8f));
+    g.fillEllipse (Rectangle<float> (R * 2.1f, R * 2.1f).withCentre (c.translated (0, R * 0.14f)));
+
+    auto pointerLine = [&] (float r0, float r1, Colour colr, float thick)
+    {
+        g.setColour (colr);
+        g.drawLine (Line<float> (polar (c, r0, a), polar (c, r1, a)), thick);
+    };
+
+    if (gKnobStyle == 1)   // ---- cream: vintage synth knob, cream cap on a grey skirt
+    {
+        auto skirt = Rectangle<float> (R * 2, R * 2).withCentre (c);
+        g.setGradientFill (ColourGradient (Colour (0xffb9b5ac), c.x, c.y - R, Colour (0xff6f6b64), c.x, c.y + R, false));
+        g.fillEllipse (skirt);
+        for (int i = 0; i < 11; ++i)   // skirt scale marks
+        {
+            const float t = start + (end - start) * (float) i / 10.0f;
+            g.setColour (Colour (0xff2a2826).withAlpha (0.7f));
+            g.drawLine (Line<float> (polar (c, R * 0.86f, t), polar (c, R * 0.97f, t)), 1.4f);
+        }
+        const float cr = R * 0.72f;
+        auto cap = Rectangle<float> (cr * 2, cr * 2).withCentre (c);
+        g.setGradientFill (ColourGradient (Colour (0xfffbf7ee), c.x - cr * 0.4f, c.y - cr * 0.6f,
+                                           Colour (0xffcfc8b8), c.x + cr * 0.5f, c.y + cr, true));
+        g.fillEllipse (cap);
+        g.setColour (Colours::black.withAlpha (0.35f));
+        g.drawEllipse (cap, 1.0f);
+        pointerLine (cr * 0.25f, R * 0.97f, Colour (0xff141414), 3.2f);
+        return;
+    }
+
+    if (gKnobStyle == 2)   // ---- red cap: grey body with a red top, white pointer
+    {
+        auto body = Rectangle<float> (R * 2, R * 2).withCentre (c);
+        g.setGradientFill (ColourGradient (Colour (0xff5d5f64), c.x, c.y - R, Colour (0xff222326), c.x, c.y + R, false));
+        g.fillEllipse (body);
+        g.setColour (Colours::white.withAlpha (0.15f));
+        g.drawEllipse (body.reduced (0.5f), 1.0f);
+        const float cr = R * 0.68f;
+        auto cap = Rectangle<float> (cr * 2, cr * 2).withCentre (c);
+        g.setGradientFill (ColourGradient (Colour (0xffff5a46), c.x - cr * 0.3f, c.y - cr * 0.6f,
+                                           Colour (0xff9c160c), c.x + cr * 0.4f, c.y + cr, true));
+        g.fillEllipse (cap);
+        g.setColour (Colours::black.withAlpha (0.4f));
+        g.drawEllipse (cap, 1.0f);
+        pointerLine (R * 0.2f, R * 0.95f, Colours::white, 3.0f);
+        return;
+    }
+
+    // ---- aluminium (default): knurled silver knob, black pointer line
+    Path knurl;
+    const int teeth = 36;
+    for (int i = 0; i <= teeth * 4; ++i)
+    {
+        const float t = MathConstants<float>::twoPi * (float) i / (float) (teeth * 4);
+        const float r = R * (0.955f + 0.045f * ((i % 4) < 2 ? 1.0f : -1.0f));
+        const auto p = polar (c, r, t);
+        i == 0 ? knurl.startNewSubPath (p) : knurl.lineTo (p);
+    }
+    knurl.closeSubPath();
+    g.setGradientFill (ColourGradient (Colour (0xffdedfe2), c.x, c.y - R, Colour (0xff6b6d72), c.x, c.y + R, false));
+    g.fillPath (knurl);
+
+    const float cr = R * 0.8f;
+    auto top = Rectangle<float> (cr * 2, cr * 2).withCentre (c);
+    ColourGradient alu (Colour (0xfff7f7f8), c.x - cr * 0.4f, c.y - cr * 0.6f, Colour (0xff9a9ca2), c.x + cr * 0.5f, c.y + cr, true);
+    alu.addColour (0.5, Colour (0xffcfd1d5));
+    g.setGradientFill (alu);
+    g.fillEllipse (top);
+    for (float r = cr * 0.15f; r < cr; r += 1.8f)   // brushed rings
+    {
+        g.setColour (Colours::black.withAlpha (0.035f));
+        g.drawEllipse (Rectangle<float> (r * 2, r * 2).withCentre (c), 0.6f);
+    }
+    g.setColour (Colours::black.withAlpha (0.45f));
+    g.drawEllipse (top, 1.0f);
+    pointerLine (cr * 0.2f, cr * 0.95f, Colour (0xff111111), 3.0f);
 }
 
 void ArpLookAndFeel::drawPopupMenuBackground (Graphics& g, int w, int h)
@@ -199,12 +234,6 @@ void AlgoDisplay::mouseDown (const MouseEvent&)
                      [this] (int r) { if (r > 0) attachment.setValueAsCompleteGesture ((float) (r - 1)); });
 }
 
-void AlgoDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
-{
-    const int n = algoNames().size();
-    const int next = jlimit (0, n - 1, index + (w.deltaY < 0 ? 1 : -1));
-    if (next != index) attachment.setValueAsCompleteGesture ((float) next);
-}
 
 //==============================================================================
 ScaleDisplay::ScaleDisplay (RangedAudioParameter& k, RangedAudioParameter& s)
@@ -248,12 +277,6 @@ void ScaleDisplay::mouseDown (const MouseEvent&)
                      });
 }
 
-void ScaleDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
-{
-    const int n = scaleNames().size();
-    const int next = jlimit (0, n - 1, scale + (w.deltaY < 0 ? 1 : -1));
-    if (next != scale) scaleAtt.setValueAsCompleteGesture ((float) next);
-}
 
 //==============================================================================
 TransposeDisplay::TransposeDisplay (RangedAudioParameter& p)
@@ -318,10 +341,6 @@ void TransposeDisplay::showGrid()
                      [this] (int r) { if (r > 0) set (r - 100); });
 }
 
-void TransposeDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
-{
-    set (value + (w.deltaY > 0 ? 1 : -1));
-}
 
 //==============================================================================
 void LedToggle::paintButton (Graphics& g, bool over, bool)
@@ -396,7 +415,7 @@ MainPanel::MainPanel (OmniarpProcessor& p)
     juce::Random rng (606);
     for (int y = 0; y < H; ++y)
         for (int x = 0; x < W; ++x)
-            texture.setPixelAt (x, y, Colour::fromRGBA (0, 0, 0, (uint8) rng.nextInt (22)));
+            texture.setPixelAt (x, y, Colour::fromRGBA (255, 255, 255, (uint8) rng.nextInt (7)));
 
     setSize (W, H);
 }
@@ -417,6 +436,7 @@ void MainPanel::addKnob (Knob& k, const String& id, const String& name, StringAr
     k.slider.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
     k.slider.setRotaryParameters (kStart, kEnd, true);
     k.slider.setMouseDragSensitivity (180);
+    k.slider.setScrollWheelEnabled (false);
     k.slider.setPopupDisplayEnabled (true, false, this);
     addAndMakeVisible (k.slider);
     k.att = std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, id, k.slider);

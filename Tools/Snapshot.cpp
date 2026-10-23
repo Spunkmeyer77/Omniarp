@@ -1,4 +1,4 @@
-#include "../Source/PluginProcessor.h"
+#include "../Source/PluginEditor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 int main (int argc, char** argv)
 {
@@ -14,6 +14,7 @@ int main (int argc, char** argv)
         p->engine.previewCount.store (16);
         p->engine.previewTick.store (1);
     }
+    if (argc > 2) tross::gKnobStyle = juce::String (argv[2]).getIntValue();
     std::unique_ptr<juce::AudioProcessorEditor> ed (p->createEditor());
     juce::MessageManager::getInstance()->runDispatchLoopUntil (300);
     auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);

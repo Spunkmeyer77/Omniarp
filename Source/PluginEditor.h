@@ -6,11 +6,14 @@ namespace tross
 {
 namespace col
 {
-    const juce::Colour bgTop    { 0xff3a2f2a }, bgBot { 0xff241c19 };
+    const juce::Colour bgTop    { 0xff1b1b1d }, bgBot { 0xff0b0b0c };
     const juce::Colour gold     { 0xffd9b77a };
     const juce::Colour ledRed   { 0xffff2a1c }, ledBg { 0xff3c0503 };
     const juce::Colour menuBg   { 0xf0500805 };
 }
+
+// Knob style for previews: 0 = aluminium, 1 = cream, 2 = red cap.
+inline int gKnobStyle = 0;
 
 class ArpLookAndFeel : public juce::LookAndFeel_V4
 {
@@ -43,7 +46,6 @@ public:
     explicit AlgoDisplay (juce::RangedAudioParameter& p);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
     juce::ParameterAttachment attachment;
     int index = 0;
@@ -56,7 +58,6 @@ public:
     ScaleDisplay (juce::RangedAudioParameter& key, juce::RangedAudioParameter& scale);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
     juce::ParameterAttachment keyAtt, scaleAtt;
     int key = 0, scale = 0;
@@ -70,7 +71,6 @@ public:
     explicit TransposeDisplay (juce::RangedAudioParameter& transpose);
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
-    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
     void set (int v);
     void showGrid();
