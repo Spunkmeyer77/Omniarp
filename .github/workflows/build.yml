@@ -1,0 +1,87 @@
+name: Build Omniarp
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,     name: Mac }
+          - { os: windows-2022, name: Windows }
+          - { os: ubuntu-22.04, name: Linux }
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxext-dev libxcomposite-dev libfreetype6-dev libfontconfig1-dev \
+            libgl1-mesa-dev
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package (Mac .pkg)
+        if: runner.os == 'macOS'
+        run: |
+          ART=build/Omniarp_artefacts/Release
+          mkdir -p pkgroot/vst3 pkgroot/au
+          cp -R "$ART/VST3/Omniarp.vst3" pkgroot/vst3/
+          cp -R "$ART/AU/Omniarp.component" pkgroot/au/
+          pkgbuild --root pkgroot/vst3 --identifier com.ticcoross.omniarp.vst3 --version 1.0.0 \
+                   --install-location "/Library/Audio/Plug-Ins/VST3" vst3.pkg
+          pkgbuild --root pkgroot/au --identifier com.ticcoross.omniarp.au --version 1.0.0 \
+                   --install-location "/Library/Audio/Plug-Ins/Components" au.pkg
+          productbuild --package vst3.pkg --package au.pkg Omniarp-Mac.pkg
+
+      - name: Package (Windows .zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "build/Omniarp_artefacts/Release/VST3/Omniarp.vst3" -DestinationPath Omniarp-Windows-VST3.zip
+
+      - name: Package (Linux .tar.gz)
+        if: runner.os == 'Linux'
+        run: |
+          cd build/Omniarp_artefacts/Release
+          tar czf $GITHUB_WORKSPACE/Omniarp-Linux.tar.gz VST3 LV2
+
+      - name: Include manual
+        shell: bash
+        run: cp Docs/Omniarp-Manual.pdf .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Omniarp-${{ matrix.name }}
+          path: |
+            Omniarp-Mac.pkg
+            Omniarp-Windows-VST3.zip
+            Omniarp-Linux.tar.gz
+            Omniarp-Manual.pdf
+          if-no-files-found: ignore
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Omniarp-Mac.pkg
+            Omniarp-Windows-VST3.zip
+            Omniarp-Linux.tar.gz
+            Omniarp-Manual.pdf
+          fail_on_unmatched_files: false
