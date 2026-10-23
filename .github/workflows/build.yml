@@ -75,13 +75,27 @@ jobs:
             Omniarp-Manual.pdf
           if-no-files-found: ignore
 
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            Omniarp-Mac.pkg
-            Omniarp-Windows-VST3.zip
-            Omniarp-Linux.tar.gz
-            Omniarp-Manual.pdf
-          fail_on_unmatched_files: false
+          tag_name: v1.0.0
+          name: Omniarp 1.0.0
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Omniarp 1.0.0 by Ticco Ross - classic-style MIDI arpeggiator with HOLD and 11 algorithms.
+            - **Mac**: Omniarp-Mac.pkg (AU + VST3, Apple Silicon and Intel)
+            - **Windows**: Omniarp-Windows-VST3.zip
+            - **Linux**: Omniarp-Linux.tar.gz (VST3 + LV2)
+            - **Manual**: Omniarp-Manual.pdf
+          files: dist/*
