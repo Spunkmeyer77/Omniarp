@@ -5,7 +5,7 @@ if(APPLE)
     set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
 endif()
 
-project(Omniarp VERSION 1.0.1)
+project(Omniarp VERSION 1.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -59,6 +59,6 @@ if(TROSS_SNAPSHOT)
     juce_add_console_app(OmniarpSnap PRODUCT_NAME "OmniarpSnap")
     target_sources(OmniarpSnap PRIVATE Tools/Snapshot.cpp Source/PluginProcessor.cpp Source/PluginEditor.cpp)
     target_compile_definitions(OmniarpSnap PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0
-        JucePlugin_VersionString="1.0.0" JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
+        JucePlugin_VersionString="${PROJECT_VERSION}" JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
     target_link_libraries(OmniarpSnap PRIVATE juce::juce_audio_utils juce::juce_gui_extra)
 endif()

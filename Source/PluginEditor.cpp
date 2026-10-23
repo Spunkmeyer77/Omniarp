@@ -6,11 +6,30 @@ namespace
 {
 constexpr float kStart = MathConstants<float>::pi * 1.22f;
 constexpr float kEnd   = MathConstants<float>::pi * 2.78f;
-constexpr int   W = 1280, H = 190;
 
 Point<float> polar (Point<float> c, float r, float a) { return { c.x + r * std::sin (a), c.y - r * std::cos (a) }; }
 
 Font labelFont (float h) { return Font (FontOptions (h, Font::bold)).withExtraKerningFactor (0.04f); }
+
+// Shared red LED screen with glowing text and a dropdown marker.
+void drawLed (Graphics& g, Rectangle<float> b, const String& text)
+{
+    g.setColour (Colours::black);
+    g.fillRoundedRectangle (b, 5.0f);
+    auto in = b.reduced (3.0f);
+    g.setGradientFill (ColourGradient (tross::col::ledBg.brighter (0.15f), in.getCentreX(), in.getY(),
+                                       tross::col::ledBg.darker (0.5f), in.getCentreX(), in.getBottom(), false));
+    g.fillRoundedRectangle (in, 4.0f);
+    g.setFont (Font (FontOptions (in.getHeight() * 0.62f)).withExtraKerningFactor (0.05f));
+    g.setColour (tross::col::ledRed.withAlpha (0.35f));
+    g.drawText (text, in.translated (0, 1).expanded (1), Justification::centred);
+    g.setColour (tross::col::ledRed);
+    g.drawText (text, in, Justification::centred);
+    Path tri;
+    const float tx = in.getRight() - 12, ty = in.getBottom() - 10;
+    tri.addTriangle (tx - 5, ty, tx + 5, ty, tx, ty + 6);
+    g.strokePath (tri, PathStrokeType (1.2f));
+}
 }
 
 namespace tross
@@ -81,11 +100,25 @@ void ArpLookAndFeel::drawPopupMenuBackground (Graphics& g, int w, int h)
     g.fillRoundedRectangle (0, 0, (float) w, (float) h, 10.0f);
 }
 
-void ArpLookAndFeel::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area, bool, bool,
-                                        bool highlighted, bool ticked, bool, const String& text,
+void ArpLookAndFeel::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area, bool isSeparator, bool,
+                                        bool highlighted, bool ticked, bool hasSubMenu, const String& text,
                                         const String&, const Drawable*, const Colour*)
 {
+    if (isSeparator)
+    {
+        g.setColour (col::ledRed.withAlpha (0.45f));
+        g.fillRect (area.reduced (16, 0).withSizeKeepingCentre (area.getWidth() - 32, 2));
+        return;
+    }
     auto r = area.reduced (16, 0);
+    if (hasSubMenu)
+    {
+        Path arrow;
+        const float x = (float) r.getRight() - 8, y = (float) r.getCentreY();
+        arrow.addTriangle (x - 5, y - 6, x - 5, y + 6, x + 3, y);
+        g.setColour (col::ledRed);
+        g.fillPath (arrow);
+    }
     if (highlighted)
     {
         g.setColour (col::ledRed.withAlpha (0.18f));
@@ -98,9 +131,9 @@ void ArpLookAndFeel::drawPopupMenuItem (Graphics& g, const Rectangle<int>& area,
     g.fillRect (r.getX(), r.getBottom() - 1, r.getWidth(), 1);
 }
 
-void ArpLookAndFeel::getIdealPopupMenuItemSize (const String&, bool, int, int& w, int& h)
+void ArpLookAndFeel::getIdealPopupMenuItemSize (const String&, bool isSeparator, int, int& w, int& h)
 {
-    w = 300; h = 40;
+    w = 300; h = isSeparator ? 12 : 40;
 }
 
 Font ArpLookAndFeel::getPopupMenuFont() { return Font (FontOptions (22.0f)).withExtraKerningFactor (0.05f); }
@@ -139,32 +172,16 @@ void ArpSwitch::paintButton (Graphics& g, bool over, bool)
 
 //==============================================================================
 AlgoDisplay::AlgoDisplay (RangedAudioParameter& p)
-    : param (p), attachment (p, [this] (float v) { index = roundToInt (v); repaint(); })
+    : attachment (p, [this] (float v) { index = roundToInt (v); repaint(); })
 {
     attachment.sendInitialUpdate();
+    setMouseCursor (MouseCursor::PointingHandCursor);
 }
 
 void AlgoDisplay::paint (Graphics& g)
 {
-    auto b = getLocalBounds().toFloat();
-    g.setColour (Colours::black);
-    g.fillRoundedRectangle (b, 5.0f);
-    auto in = b.reduced (3.0f);
-    g.setGradientFill (ColourGradient (col::ledBg.brighter (0.15f), in.getCentreX(), in.getY(), col::ledBg.darker (0.5f), in.getCentreX(), in.getBottom(), false));
-    g.fillRoundedRectangle (in, 4.0f);
-
     const auto names = algoNames();
-    const auto text = names[jlimit (0, names.size() - 1, index)];
-    g.setFont (Font (FontOptions (in.getHeight() * 0.62f)).withExtraKerningFactor (0.05f));
-    g.setColour (col::ledRed.withAlpha (0.35f));                       // glow
-    g.drawText (text, in.translated (0, 1).expanded (1), Justification::centred);
-    g.setColour (col::ledRed);
-    g.drawText (text, in, Justification::centred);
-
-    Path tri;                                                           // dropdown arrow
-    const float tx = in.getRight() - 12, ty = in.getBottom() - 11;
-    tri.addTriangle (tx - 5, ty, tx + 5, ty, tx, ty + 6);
-    g.strokePath (tri, PathStrokeType (1.2f));
+    drawLed (g, getLocalBounds().toFloat(), names[jlimit (0, names.size() - 1, index)]);
 }
 
 void AlgoDisplay::mouseDown (const MouseEvent&)
@@ -187,54 +204,104 @@ void AlgoDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
 }
 
 //==============================================================================
+ScaleDisplay::ScaleDisplay (RangedAudioParameter& k, RangedAudioParameter& s)
+    : keyAtt   (k, [this] (float v) { key   = roundToInt (v); repaint(); }),
+      scaleAtt (s, [this] (float v) { scale = roundToInt (v); repaint(); })
+{
+    keyAtt.sendInitialUpdate();
+    scaleAtt.sendInitialUpdate();
+    setMouseCursor (MouseCursor::PointingHandCursor);
+}
+
+void ScaleDisplay::paint (Graphics& g)
+{
+    const auto scales = scaleNames();
+    const auto text = scale == 0 ? String ("OFF") : keyNames()[key] + " " + scales[jlimit (0, scales.size() - 1, scale)];
+    drawLed (g, getLocalBounds().toFloat(), text);
+}
+
+void ScaleDisplay::mouseDown (const MouseEvent&)
+{
+    PopupMenu keys;
+    const auto kn = keyNames();
+    for (int i = 0; i < kn.size(); ++i)
+        keys.addItem (100 + i, kn[i], true, i == key);
+
+    PopupMenu m;
+    m.setLookAndFeel (&getLookAndFeel());
+    m.addSubMenu ("KEY:  " + kn[key], keys);
+    m.addSeparator();
+    const auto sn = scaleNames();
+    for (int i = 0; i < sn.size(); ++i)
+        m.addItem (1 + i, sn[i], true, i == scale);
+
+    m.showMenuAsync (PopupMenu::Options().withTargetComponent (this).withPreferredPopupDirection (PopupMenu::Options::PopupDirection::downwards),
+                     [this] (int r)
+                     {
+                         if (r >= 100)    keyAtt.setValueAsCompleteGesture ((float) (r - 100));
+                         else if (r > 0)  scaleAtt.setValueAsCompleteGesture ((float) (r - 1));
+                     });
+}
+
+void ScaleDisplay::mouseWheelMove (const MouseEvent&, const MouseWheelDetails& w)
+{
+    const int n = scaleNames().size();
+    const int next = jlimit (0, n - 1, scale + (w.deltaY < 0 ? 1 : -1));
+    if (next != scale) scaleAtt.setValueAsCompleteGesture ((float) next);
+}
+
+//==============================================================================
 void AboutPanel::paint (Graphics& g)
 {
     g.fillAll (Colours::black.withAlpha (0.72f));
-    auto card = getLocalBounds().toFloat().withSizeKeepingCentre (440, 160);
+    auto card = getLocalBounds().toFloat().withSizeKeepingCentre (460, 180);
     g.setGradientFill (ColourGradient (col::bgTop.brighter (0.15f), card.getX(), card.getY(), col::bgBot, card.getX(), card.getBottom(), false));
     g.fillRoundedRectangle (card, 10);
     g.setColour (col::gold);
     g.drawRoundedRectangle (card.reduced (4), 8, 1.5f);
 
-    auto r = card.reduced (20, 14);
-    g.setFont (labelFont (34));
-    g.drawText ("OMNIARP", r.removeFromTop (42), Justification::centred);
+    auto r = card.reduced (20, 16);
+    g.setFont (labelFont (36));
+    g.drawText ("OMNIARP", r.removeFromTop (44), Justification::centred);
     g.setColour (col::ledRed);
     g.setFont (labelFont (13));
-    g.drawText ("ARPEGGIATOR  -  VERSION " JucePlugin_VersionString, r.removeFromTop (22), Justification::centred);
+    g.drawText ("ARPEGGIATOR  -  VERSION " JucePlugin_VersionString, r.removeFromTop (24), Justification::centred);
     g.setColour (col::gold.withAlpha (0.85f));
-    g.setFont (labelFont (14));
-    g.drawText ("TICCO ROSS", r.removeFromTop (24), Justification::centred);
+    g.setFont (labelFont (15));
+    g.drawText ("TICCO ROSS", r.removeFromTop (26), Justification::centred);
     g.setFont (Font (FontOptions (13.0f)));
     g.drawText ("ticcoross@gmail.com", r.removeFromTop (20), Justification::centred);
     g.setColour (col::gold.withAlpha (0.45f));
     g.setFont (Font (FontOptions (11.0f)));
     g.drawText ("click anywhere to close", r, Justification::centredBottom);
 }
-} // namespace tross
 
 //==============================================================================
-OmniarpEditor::OmniarpEditor (OmniarpProcessor& p)
-    : AudioProcessorEditor (p), proc (p), algo (*p.apvts.getParameter ("algo"))
+MainPanel::MainPanel (OmniarpProcessor& p)
+    : proc (p),
+      algo (*p.apvts.getParameter ("algo")),
+      scaleDisp (*p.apvts.getParameter ("key"), *p.apvts.getParameter ("scale"))
 {
-    setLookAndFeel (&lnf);
-
-    addAndMakeVisible (arpSwitch);
-    arpAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "hold", arpSwitch);
+    addAndMakeVisible (holdSwitch);
+    holdAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "hold", holdSwitch);
     addAndMakeVisible (algo);
+    addAndMakeVisible (scaleDisp);
 
-    addKnob (gate,    "gate",    "GATE",     {});
-    addKnob (swing,   "swing",   "SWING",    {});
-    addKnob (note,    "rate",    "NOTE",     tross::rateNames());
-    addKnob (noteRpt, "noteRpt", "NOTE RPT", { "1", "2", "3", "4", "5" });
-    addKnob (oct,     "oct",     "OCT",      tross::octNames());
-    addKnob (octRpt,  "octRpt",  "OCT RPT",  { "1", "2", "3", "4", "5" });
+    addKnob (gate,      "gate",      "GATE",      {});
+    addKnob (swing,     "swing",     "SWING",     {});
+    addKnob (note,      "rate",      "NOTE",      rateNames());
+    addKnob (noteRpt,   "noteRpt",   "NOTE RPT",  { "1", "2", "3", "4", "5" });
+    addKnob (steps,     "steps",     "STEPS",     {}, "OFF", "16");
+    addKnob (oct,       "oct",       "OCT",       octNames());
+    addKnob (octRpt,    "octRpt",    "OCT RPT",   { "1", "2", "3", "4", "5" });
+    addKnob (transpose, "transpose", "TRANSPOSE", {}, "-12", "+12");
 
+    addAndMakeVisible (title);
+    title.onClick = [this] { about.setVisible (true); about.toFront (false); };
     addChildComponent (about);
 
-    // Subtle grain texture, generated once.
     texture = Image (Image::ARGB, W, H, true);
-    Random rng (606);
+    juce::Random rng (606);
     for (int y = 0; y < H; ++y)
         for (int x = 0; x < W; ++x)
             texture.setPixelAt (x, y, Colour::fromRGBA (0, 0, 0, (uint8) rng.nextInt (22)));
@@ -242,12 +309,18 @@ OmniarpEditor::OmniarpEditor (OmniarpProcessor& p)
     setSize (W, H);
 }
 
-OmniarpEditor::~OmniarpEditor() { setLookAndFeel (nullptr); }
+std::vector<MainPanel::Knob*> MainPanel::knobs()
+{
+    return { &gate, &swing, &note, &noteRpt, &steps, &oct, &octRpt, &transpose };
+}
 
-void OmniarpEditor::addKnob (Knob& k, const String& id, const String& name, StringArray marks)
+void MainPanel::addKnob (Knob& k, const String& id, const String& name, StringArray marks,
+                         const String& low, const String& high)
 {
     k.name = name;
     k.marks = std::move (marks);
+    k.lowLabel = low;
+    k.highLabel = high;
     k.slider.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     k.slider.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
     k.slider.setRotaryParameters (kStart, kEnd, true);
@@ -255,21 +328,21 @@ void OmniarpEditor::addKnob (Knob& k, const String& id, const String& name, Stri
     k.slider.setPopupDisplayEnabled (true, false, this);
     addAndMakeVisible (k.slider);
     k.att = std::make_unique<AudioProcessorValueTreeState::SliderAttachment> (proc.apvts, id, k.slider);
+    if (id == "transpose") k.slider.setDoubleClickReturnValue (true, 0.0);
 }
 
-void OmniarpEditor::drawKnobLabels (Graphics& g, const Knob& k)
+void MainPanel::drawKnobLabels (Graphics& g, const Knob& k)
 {
     const auto b = k.slider.getBounds().toFloat();
     const auto c = b.getCentre();
     const float R = jmin (b.getWidth(), b.getHeight()) * 0.5f;
 
-    g.setColour (tross::col::gold);
-    g.setFont (labelFont (19));
+    g.setColour (col::gold);
+    g.setFont (labelFont (k.name.length() > 8 ? 16.0f : 19.0f));
     g.drawText (k.name, Rectangle<float> (150, 24).withCentre ({ c.x, c.y + R + 26 }), Justification::centred);
 
     if (k.marks.isEmpty())
     {
-        // continuous: graduated tick scale with 0 and 1 at the ends
         const int n = 21;
         for (int i = 0; i < n; ++i)
         {
@@ -277,13 +350,14 @@ void OmniarpEditor::drawKnobLabels (Graphics& g, const Knob& k)
             const bool major = i == 0 || i == n - 1 || i == n / 2;
             g.drawLine (Line<float> (polar (c, R + 6, a), polar (c, R + (major ? 16.0f : 11.0f), a)), major ? 2.0f : 1.2f);
         }
-        g.setFont (labelFont (17));
-        g.drawText ("0", Rectangle<float> (20, 20).withCentre (polar (c, R + 22, kStart).translated (-6, 10)), Justification::centred);
-        g.drawText ("1", Rectangle<float> (20, 20).withCentre (polar (c, R + 22, kEnd).translated (6, 10)), Justification::centred);
+        const bool wide = k.lowLabel.length() > 1;
+        const float push = wide ? 20.0f : 10.0f, drop = wide ? 0.0f : 10.0f;
+        g.setFont (labelFont (wide ? 13.0f : 17.0f));
+        g.drawText (k.lowLabel,  Rectangle<float> (40, 20).withCentre (polar (c, R + 24, kStart).translated (-push, drop)), Justification::centred);
+        g.drawText (k.highLabel, Rectangle<float> (40, 20).withCentre (polar (c, R + 24, kEnd).translated (push, drop)), Justification::centred);
         return;
     }
 
-    // stepped: a dot + value label at each position
     const int n = k.marks.size();
     g.setFont (labelFont (n > 6 ? 12.5f : 17.0f));
     for (int i = 0; i < n; ++i)
@@ -294,9 +368,9 @@ void OmniarpEditor::drawKnobLabels (Graphics& g, const Knob& k)
     }
 }
 
-void OmniarpEditor::paint (Graphics& g)
+void MainPanel::paint (Graphics& g)
 {
-    g.setGradientFill (ColourGradient (tross::col::bgTop, 0, 0, tross::col::bgBot, 0, (float) H, false));
+    g.setGradientFill (ColourGradient (col::bgTop, 0, 0, col::bgBot, 0, (float) H, false));
     g.fillAll();
     g.drawImageAt (texture, 0, 0);
     g.setColour (Colours::white.withAlpha (0.07f));
@@ -304,44 +378,74 @@ void OmniarpEditor::paint (Graphics& g)
     g.setColour (Colours::black.withAlpha (0.6f));
     g.drawRect (getLocalBounds(), 1);
 
-    g.setColour (tross::col::gold);
+    g.setColour (col::gold);
     g.setFont (labelFont (20));
-    g.drawText ("HOLD", Rectangle<int> (8, arpSwitch.getBottom() + 8, 60, 24), Justification::centred);
-    g.drawText ("ALGORITHM", algo.getBounds().translated (0, algo.getHeight() + 6).withHeight (24), Justification::centredLeft);
+    g.drawText ("HOLD", Rectangle<int> (6, holdSwitch.getBottom() + 8, 64, 24), Justification::centred);
+    g.setFont (labelFont (17));
+    g.drawText ("ALGORITHM", algo.getBounds().translated (0, algo.getHeight() + 4).withHeight (20), Justification::centredLeft);
+    g.drawText ("SCALE", scaleDisp.getBounds().translated (0, scaleDisp.getHeight() + 4).withHeight (20), Justification::centredLeft);
 
-    // logo (click for About)
-    g.setFont (labelFont (26));
-    g.drawText ("OMNIARP", logoArea.withHeight (30), Justification::centredLeft);
-    g.setColour (tross::col::gold.withAlpha (0.55f));
-    g.setFont (labelFont (11));
-    g.drawText ("TICCO ROSS", Rectangle<int> (100, 48, 200, 16), Justification::centredLeft);
+    // title (plug-in name only) + dimmed version
+    g.setColour (col::gold);
+    g.setFont (labelFont (28));
+    g.drawText ("OMNIARP", title.getBounds(), Justification::centredLeft);
+    g.setColour (col::gold.withAlpha (0.4f));
+    g.setFont (labelFont (12));
+    g.drawText ("v" JucePlugin_VersionString, Rectangle<int> (title.getRight() + 8, title.getY() + 11, 80, 16), Justification::centredLeft);
 
-    for (auto* k : { &gate, &swing, &note, &noteRpt, &oct, &octRpt })
+    for (auto* k : knobs())
         drawKnobLabels (g, *k);
+}
+
+void MainPanel::resized()
+{
+    holdSwitch.setBounds (14, 52, 48, 120);
+
+    // click zone = exactly the title lettering
+    const auto titleW = roundToInt (GlyphArrangement::getStringWidth (labelFont (28), "OMNIARP"));
+    title.setBounds (98, 12, titleW + 2, 30);
+
+    algo.setBounds (98, 52, 250, 46);
+    scaleDisp.setBounds (98, 128, 250, 46);
+
+    const int knob = 80, firstX = 450, gap = 150, cy = 104;
+    int i = 0;
+    for (auto* k : knobs())
+        k->slider.setBounds (Rectangle<int> (knob, knob).withCentre ({ firstX + gap * i++, cy }));
+
+    about.setBounds (getLocalBounds());
+}
+} // namespace tross
+
+//==============================================================================
+OmniarpEditor::OmniarpEditor (OmniarpProcessor& p)
+    : AudioProcessorEditor (p), proc (p), panel (p)
+{
+    setLookAndFeel (&lnf);
+    panel.setLookAndFeel (&lnf);
+    addAndMakeVisible (panel);
+
+    constexpr int W = tross::MainPanel::W, H = tross::MainPanel::H;
+    const double scale = jlimit (0.6, 2.0, (double) proc.apvts.state.getProperty ("uiScale", 1.0));
+    setResizable (true, true);
+    setResizeLimits (W * 6 / 10, H * 6 / 10, W * 2, H * 2);
+    getConstrainer()->setFixedAspectRatio ((double) W / (double) H);
+
+    setSize (roundToInt (W * scale), roundToInt (H * scale));
+    ready = true;
+}
+
+OmniarpEditor::~OmniarpEditor()
+{
+    panel.setLookAndFeel (nullptr);
+    setLookAndFeel (nullptr);
 }
 
 void OmniarpEditor::resized()
 {
-    arpSwitch.setBounds (14, 40, 48, 104);
-    logoArea = { 98, 18, 200, 50 };
-    algo.setBounds (98, 76, 250, 56);
-
-    const int knob = 84, firstX = 440, gap = 150, cy = 90;
-    int i = 0;
-    for (auto* k : { &gate, &swing, &note, &noteRpt, &oct, &octRpt })
-    {
-        k->slider.setBounds (Rectangle<int> (knob, knob).withCentre ({ firstX + gap * i, cy }));
-        ++i;
-    }
-
-    about.setBounds (getLocalBounds());
-}
-
-void OmniarpEditor::mouseDown (const MouseEvent& e)
-{
-    if (logoArea.contains (e.getPosition()))
-    {
-        about.setVisible (true);
-        about.toFront (false);
-    }
+    const float scale = (float) getWidth() / (float) tross::MainPanel::W;
+    panel.setTransform (AffineTransform::scale (scale));
+    panel.setBounds (0, 0, tross::MainPanel::W, tross::MainPanel::H);
+    if (ready && getWidth() > 0)
+        proc.apvts.state.setProperty ("uiScale", scale, nullptr);   // remembered with the project
 }

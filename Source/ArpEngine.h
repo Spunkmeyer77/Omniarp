@@ -28,7 +28,38 @@ inline double rateQuarters (int i)
     return q[juce::jlimit (0, 8, i)];
 }
 
-inline juce::StringArray octNames() { return { "0", "+1", "+2", "+3", "-1", "-/+1" }; }
+inline juce::StringArray octNames()
+{
+    return { "0", "+1", "+2", "+3", "-1", juce::String (juce::CharPointer_UTF8 ("\xc2\xb1" "1")) };   // last = "±1"
+}
+
+inline juce::StringArray keyNames() { return { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }; }
+
+inline juce::StringArray scaleNames()
+{
+    return { "OFF", "MAJOR", "MINOR", "DORIAN", "PHRYGIAN", "LYDIAN", "MIXOLYDIAN",
+             "HARM MINOR", "PENTA MAJOR", "PENTA MINOR", "BLUES" };
+}
+
+// 12-bit masks, bit n = semitone n above the key is in the scale.
+inline int scaleMask (int scale)
+{
+    auto m = [] (std::initializer_list<int> steps) { int r = 0; for (int s : steps) r |= 1 << s; return r; };
+    switch (scale)
+    {
+        case 1:  return m ({ 0, 2, 4, 5, 7, 9, 11 });
+        case 2:  return m ({ 0, 2, 3, 5, 7, 8, 10 });
+        case 3:  return m ({ 0, 2, 3, 5, 7, 9, 10 });
+        case 4:  return m ({ 0, 1, 3, 5, 7, 8, 10 });
+        case 5:  return m ({ 0, 2, 4, 6, 7, 9, 11 });
+        case 6:  return m ({ 0, 2, 4, 5, 7, 9, 10 });
+        case 7:  return m ({ 0, 2, 3, 5, 7, 8, 11 });
+        case 8:  return m ({ 0, 2, 4, 7, 9 });
+        case 9:  return m ({ 0, 3, 5, 7, 10 });
+        case 10: return m ({ 0, 3, 5, 6, 7, 10 });
+        default: return 0xfff;
+    }
+}
 
 inline std::vector<int> octaveList (int mode)
 {
@@ -100,8 +131,10 @@ public:
     {
         bool hold = false; int algo = 0; float gate = 0.5f, swing = 0.0f;
         int rate = 6, noteRpt = 1, octMode = 0, octRpt = 1;
+        int transpose = 0, steps = 0, key = 0, scale = 0;   // steps 0 = full pattern
         bool sameSequence (const Settings& o) const
-        { return algo == o.algo && noteRpt == o.noteRpt && octMode == o.octMode && octRpt == o.octRpt; }
+        { return algo == o.algo && noteRpt == o.noteRpt && octMode == o.octMode && octRpt == o.octRpt
+                 && key == o.key && scale == o.scale; }
     };
 
     void prepare (double sr) { sampleRate = sr; reset(); }
@@ -218,7 +251,22 @@ private:
     {
         sorted = held;
         std::sort (sorted.begin(), sorted.end(), [] (const Held& a, const Held& b) { return a.note < b.note; });
-        const auto pat = buildPattern (cached.algo, (int) held.size());
+
+        // SCALE: replace the held notes with every scale note from the lowest held note
+        // up to the highest one (at least one octave), so even one key becomes a run.
+        if (cached.scale > 0 && ! sorted.empty())
+        {
+            const auto base = sorted.front();
+            const int lo = base.note, hi = std::max (sorted.back().note, lo + 11);
+            const int mask = scaleMask (cached.scale);
+            std::vector<Held> pool;
+            for (int n = lo; n <= hi && n <= 127; ++n)
+                if (mask & (1 << (((n - cached.key) % 12 + 12) % 12)))
+                    pool.push_back ({ n, base.vel, base.channel });
+            if (! pool.empty()) sorted = pool;
+        }
+
+        const auto pat = buildPattern (cached.algo, (int) sorted.size());
         seq.clear();
         for (int o : octaveList (cached.octMode))
             for (int r = 0; r < cached.octRpt; ++r)
@@ -236,11 +284,11 @@ private:
 
         const auto& src = sorted;
         publishPreview (src);
-        const auto st = seq[(size_t) (seqPos++ % (juce::int64) seq.size())];
+        const auto st = seq[stepIndex (seqPos++)];
 
         auto play = [&] (const Held& h)
         {
-            const int n = h.note + 12 * st.oct;
+            const int n = h.note + 12 * st.oct + cached.transpose;
             if (n < 0 || n > 127) return;
             out.addEvent (juce::MidiMessage::noteOn (h.channel, n, (juce::uint8) h.vel), pos);
             sounding.push_back ({ h.channel, n });
@@ -252,14 +300,22 @@ private:
         else                   play (src[(size_t) juce::jmin (st.idx, (int) src.size() - 1)]);
     }
 
+    // STEPS: loop only the first N steps of the sequence (0 = whole sequence).
+    size_t stepIndex (juce::int64 pos) const
+    {
+        const auto size = (juce::int64) seq.size();
+        const auto len  = cached.steps > 0 ? (juce::int64) cached.steps : size;
+        return (size_t) ((pos % len) % size);
+    }
+
     void publishPreview (const std::vector<Held>& src)
     {
         const int n = (int) juce::jmin ((size_t) previewMax, seq.size());
         for (int i = 0; i < n; ++i)
         {
-            const auto& st = seq[(size_t) ((seqPos + i) % (juce::int64) seq.size())];
+            const auto& st = seq[stepIndex (seqPos + i)];
             int v = st.idx;
-            if (st.idx >= 0) v = src[(size_t) juce::jmin (st.idx, (int) src.size() - 1)].note + 12 * st.oct;
+            if (st.idx >= 0) v = src[(size_t) juce::jmin (st.idx, (int) src.size() - 1)].note + 12 * st.oct + cached.transpose;
             preview[(size_t) i].store (v, std::memory_order_relaxed);
         }
         previewCount.store (n);

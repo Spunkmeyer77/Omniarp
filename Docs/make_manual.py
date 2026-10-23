@@ -30,9 +30,9 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.0.1")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.1.0")
     w = A4[0] - 30 * mm
-    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 190 / 1280, mask="auto")
+    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 230 / 1590, mask="auto")
     c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(A4[0] / 2, 30 * mm, "TICCO ROSS")
     c.setFont("Helvetica", 10)
@@ -82,22 +82,30 @@ s += [Paragraph("Welcome", H1),
             [28 * mm, doc.width - 28 * mm]),
       PageBreak()]
 
-s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 190 / 1280), Spacer(1, 8),
+s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 230 / 1590), Spacer(1, 8),
       table([("HOLD", "The blue switch latches the chord. With HOLD on, the arp keeps playing after you release the keys. "
                       "Play a new chord (after letting go of all keys) to replace it; keys added while others are still down join the chord. "
                       "Turning HOLD off releases any latched notes you are no longer holding."),
              ("ALGORITHM", "The red display shows the current pattern. Click it to choose from the list, or scroll over it "
                            "to step through the algorithms."),
+             ("SCALE", "The second red display sets a key and scale (Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Harmonic Minor, "
+                       "Pentatonic Major/Minor, Blues). When a scale is on, Omniarp plays every note of that scale from your lowest held note "
+                       "up to your highest (at least one octave), so even a single key becomes a melodic run. Click it to choose the key "
+                       "(KEY submenu) and scale, or scroll over it. OFF plays just the notes you hold."),
              ("GATE", "Length of each note as a fraction of a step. Low values are short and staccato; 1 is fully legato."),
              ("SWING", "Delays every second step. At 0 the timing is straight; at 1 the off-beat is pushed half a step late."),
              ("NOTE", "Step rate, locked to the host tempo: 1/4, 1/4T, 1/8., 1/8, 1/8T, 1/16., 1/16, 1/16T, 1/32 "
                       "(T = triplet, dot = dotted)."),
              ("NOTE RPT", "Plays each note 1 to 5 times before moving to the next one."),
+             ("STEPS", "Pattern length. OFF plays the whole pattern; 1 to 16 loops only the first N steps. Odd lengths "
+                       "such as 3, 5 or 7 against a 4/4 beat create shifting polyrhythms."),
              ("OCT", "Octave range: 0 (played octave only), +1, +2, +3 (upwards), -1 (one octave down), "
-                     "-/+1 (one octave below, the played octave, then one above)."),
-             ("OCT RPT", "How many times the whole pattern cycles in an octave before moving to the next octave (1 to 5).")],
+                     "\u00b11 (one octave below, the played octave, then one above)."),
+             ("OCT RPT", "How many times the whole pattern cycles in an octave before moving to the next octave (1 to 5)."),
+             ("TRANSPOSE", "Shifts everything Omniarp plays by -12 to +12 semitones, so you can keep one chord shape and move it. "
+                           "Double-click the knob to reset it to 0.")],
             [28 * mm, doc.width - 28 * mm]),
-      Paragraph("Click the OMNIARP logo to open the About panel. Click anywhere on it to close it.", P),
+      Paragraph("Click the OMNIARP title to open the About panel; click anywhere on it to close it. Drag the bottom-right corner to resize the window (60% to 200%); the size is saved with your project.", P),
       PageBreak()]
 
 s += [Paragraph("Algorithms", H1),

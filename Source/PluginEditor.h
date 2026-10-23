@@ -45,17 +45,72 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
     void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
 private:
-    juce::RangedAudioParameter& param;
     juce::ParameterAttachment attachment;
     int index = 0;
 };
 
-// Custom About panel.
+// Red LED key + scale display ("C MINOR" / "OFF").
+class ScaleDisplay : public juce::Component
+{
+public:
+    ScaleDisplay (juce::RangedAudioParameter& key, juce::RangedAudioParameter& scale);
+    void paint (juce::Graphics&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseWheelMove (const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+private:
+    juce::ParameterAttachment keyAtt, scaleAtt;
+    int key = 0, scale = 0;
+};
+
+// Invisible click zone over the title that opens the About panel.
+class TitleHotspot : public juce::Component
+{
+public:
+    TitleHotspot() { setMouseCursor (juce::MouseCursor::PointingHandCursor); }
+    void mouseDown (const juce::MouseEvent&) override { if (onClick) onClick(); }
+    std::function<void()> onClick;
+};
+
 class AboutPanel : public juce::Component
 {
 public:
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override { setVisible (false); }
+};
+
+// The whole panel at its design size; the editor scales it to the window.
+class MainPanel : public juce::Component
+{
+public:
+    static constexpr int W = 1590, H = 230;
+    explicit MainPanel (OmniarpProcessor&);
+    void paint (juce::Graphics&) override;
+    void resized() override;
+
+private:
+    struct Knob
+    {
+        juce::Slider slider;
+        juce::String name;
+        juce::StringArray marks;           // stepped: one label per position
+        juce::String lowLabel, highLabel;  // continuous: end labels
+        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
+    };
+
+    void addKnob (Knob&, const juce::String& id, const juce::String& name, juce::StringArray marks,
+                  const juce::String& low = "0", const juce::String& high = "1");
+    void drawKnobLabels (juce::Graphics&, const Knob&);
+    std::vector<Knob*> knobs();
+
+    OmniarpProcessor& proc;
+    ArpSwitch holdSwitch;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> holdAtt;
+    AlgoDisplay algo;
+    ScaleDisplay scaleDisp;
+    Knob gate, swing, note, noteRpt, steps, oct, octRpt, transpose;
+    TitleHotspot title;
+    AboutPanel about;
+    juce::Image texture;
 };
 } // namespace tross
 
@@ -64,31 +119,13 @@ class OmniarpEditor : public juce::AudioProcessorEditor
 public:
     explicit OmniarpEditor (OmniarpProcessor&);
     ~OmniarpEditor() override;
-    void paint (juce::Graphics&) override;
     void resized() override;
-    void mouseDown (const juce::MouseEvent&) override;
 
 private:
-    struct Knob
-    {
-        juce::Slider slider;
-        juce::String name;
-        juce::StringArray marks;   // empty -> drawn as tick scale with 0/1 ends
-        std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> att;
-    };
-
-    void addKnob (Knob&, const juce::String& id, const juce::String& name, juce::StringArray marks);
-    void drawKnobLabels (juce::Graphics&, const Knob&);
-
     OmniarpProcessor& proc;
     tross::ArpLookAndFeel lnf;
-    tross::ArpSwitch arpSwitch;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> arpAtt;
-    tross::AlgoDisplay algo;
-    Knob gate, swing, note, noteRpt, oct, octRpt;
-    tross::AboutPanel about;
-    juce::Rectangle<int> logoArea;
-    juce::Image texture;
+    tross::MainPanel panel;
+    bool ready = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OmniarpEditor)
 };

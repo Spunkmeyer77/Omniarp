@@ -19,6 +19,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OmniarpProcessor::createLayo
     p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "noteRpt", 1 }, "Note Rpt",  1, 5, 1));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "oct", 1 },     "Oct",       tross::octNames(), 0));
     p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "octRpt", 1 },  "Oct Rpt",   1, 5, 1));
+    p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "transpose", 1 }, "Transpose", -12, 12, 0,
+        AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return v > 0 ? "+" + String (v) : String (v); })));
+    p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "steps", 1 }, "Steps", 0, 16, 0,
+        AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return v == 0 ? String ("OFF") : String (v); })));
+    p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "key", 1 },   "Key",   tross::keyNames(), 0));
+    p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "scale", 1 }, "Scale", tross::scaleNames(), 0));
     return { p.begin(), p.end() };
 }
 
@@ -35,6 +41,10 @@ void OmniarpProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     s.noteRpt = (int) apvts.getRawParameterValue ("noteRpt")->load();
     s.octMode = (int) apvts.getRawParameterValue ("oct")->load();
     s.octRpt  = (int) apvts.getRawParameterValue ("octRpt")->load();
+    s.transpose = (int) apvts.getRawParameterValue ("transpose")->load();
+    s.steps     = (int) apvts.getRawParameterValue ("steps")->load();
+    s.key       = (int) apvts.getRawParameterValue ("key")->load();
+    s.scale     = (int) apvts.getRawParameterValue ("scale")->load();
 
     double bpm = 120.0, ppq = 0.0;
     bool playing = false;
