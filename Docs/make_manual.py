@@ -30,7 +30,7 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.4.0")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.4.1")
     w = A4[0] - 30 * mm
     c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 210 / 1525, mask="auto")
     c.setFont("Helvetica-Bold", 12)
@@ -102,7 +102,7 @@ s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 
                      "\u00b11 (one octave below, the played octave, then one above)."),
              ("OCT RPT", "How many times the whole pattern cycles in an octave before moving to the next octave (1 to 5)."),
              ("TRANSPOSE", "Shifts the arp from -12 to +12 semitones. Click the arrows on the red screen to go down or up one "
-                           "semitone, click the number for a grid of every value (jump straight to +7 without passing +1 to +6) or double-click it to reset to 0. Changes always land on the next arp step, never mid-note."),
+                           "semitone, click the number for a grid of every value (jump straight to +7 without passing +1 to +6, or pick 0 to reset), or Alt/Option-click the number to reset to 0. Changes always land on the next arp step, never mid-note."),
              ("IN KEY", "The small light above TRANSPOSE. When it is on and a SCALE is selected, transposed notes snap to the nearest "
                         "note of that scale, so transposing never plays notes outside the key.")],
             [28 * mm, doc.width - 28 * mm]),

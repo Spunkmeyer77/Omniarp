@@ -316,15 +316,9 @@ void TransposeDisplay::mouseDown (const MouseEvent& e)
     if (e.x < 26)               { set (value - 1); return; }
     if (e.x > getWidth() - 26)  { set (value + 1); return; }
 
-    if (e.getNumberOfClicks() > 1) { gridPending = false; set (0); return; }   // double-click = 0
+    if (e.mods.isAltDown()) { set (0); return; }   // Alt/Option-click = reset to 0
 
-    // wait a moment so a double-click can reset instead of opening the grid
-    gridPending = true;
-    Component::SafePointer<TransposeDisplay> safe (this);
-    Timer::callAfterDelay (MouseEvent::getDoubleClickTimeout() + 20, [safe]
-    {
-        if (safe != nullptr && safe->gridPending) { safe->gridPending = false; safe->showGrid(); }
-    });
+    showGrid();   // opens instantly
 }
 
 void TransposeDisplay::showGrid()
