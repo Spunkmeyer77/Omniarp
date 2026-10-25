@@ -30,9 +30,9 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.4.1")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.5.0")
     w = A4[0] - 30 * mm
-    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 210 / 1525, mask="auto")
+    c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 210 / 1675, mask="auto")
     c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(A4[0] / 2, 30 * mm, "TICCO ROSS")
     c.setFont("Helvetica", 10)
@@ -82,7 +82,7 @@ s += [Paragraph("Welcome", H1),
             [28 * mm, doc.width - 28 * mm]),
       PageBreak()]
 
-s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 210 / 1525), Spacer(1, 8),
+s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 210 / 1675), Spacer(1, 8),
       table([("HOLD", "The blue switch latches the chord. With HOLD on, the arp keeps playing after you release the keys. "
                       "Play a new chord (after letting go of all keys) to replace it; keys added while others are still down join the chord. "
                       "Turning HOLD off releases any latched notes you are no longer holding."),
@@ -98,6 +98,9 @@ s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 
              ("NOTE RPT", "Plays each note 1 to 5 times before moving to the next one."),
              ("STEPS", "Pattern length. OFF plays the whole pattern; 1 to 16 loops only the first N steps. Odd lengths "
                        "such as 3, 5 or 7 against a 4/4 beat create shifting polyrhythms."),
+             ("OFFSET", "Starts the pattern N steps later (0 to 15) without changing its notes, so a different note lands on the "
+                        "beat. With C E G B on UP: 0 plays C E G B, 1 plays E G B C, 2 plays G B C E. With STEPS on, the offset "
+                        "works inside the loop (STEPS 3, OFFSET 1 plays steps 2 3 1). Offsets larger than the pattern wrap around."),
              ("OCT", "Octave range: 0 (played octave only), +1, +2, +3 (upwards), -1 (one octave down), "
                      "\u00b11 (one octave below, the played octave, then one above)."),
              ("OCT RPT", "How many times the whole pattern cycles in an octave before moving to the next octave (1 to 5)."),

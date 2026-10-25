@@ -6,7 +6,7 @@ int main (int argc, char** argv)
     auto* p = static_cast<OmniarpProcessor*> (createPluginFilter());
     std::unique_ptr<juce::AudioProcessor> owner (p);
     auto set = [p] (const char* id, float v) { if (auto* prm = p->apvts.getParameter (id)) prm->setValueNotifyingHost (prm->convertTo0to1 (v)); };
-    set ("hold", 1); set ("algo", 2); set ("scale", 2); set ("key", 9); set ("steps", 7); set ("transpose", 5); set ("inkey", 1); set ("gate", 0.62f); set ("swing", 0.18f); set ("oct", 1); set ("octRpt", 2);
+    set ("hold", 1); set ("algo", 2); set ("scale", 2); set ("key", 9); set ("steps", 7); set ("offset", 2); set ("transpose", 5); set ("inkey", 1); set ("gate", 0.62f); set ("swing", 0.18f); set ("oct", 1); set ("octRpt", 2);
     if (argc > 2)   // demo pattern: C E G B up/down over two octaves
     {
         const int demo[] = { 60, 64, 67, 71, 67, 64, 72, 76, 79, 83, 79, 76, 60, 64, 67, 71 };

@@ -23,6 +23,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OmniarpProcessor::createLayo
         AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return v > 0 ? "+" + String (v) : String (v); })));
     p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "steps", 1 }, "Steps", 0, 16, 0,
         AudioParameterIntAttributes().withStringFromValueFunction ([] (int v, int) { return v == 0 ? String ("OFF") : String (v); })));
+    p.push_back (std::make_unique<AudioParameterInt>    (ParameterID { "offset", 1 }, "Offset", 0, 15, 0));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "key", 1 },   "Key",   tross::keyNames(), 0));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "scale", 1 }, "Scale", tross::scaleNames(), 0));
     p.push_back (std::make_unique<AudioParameterBool>   (ParameterID { "inkey", 1 }, "In Key", false));
@@ -44,6 +45,7 @@ void OmniarpProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     s.octRpt  = (int) apvts.getRawParameterValue ("octRpt")->load();
     s.transpose = (int) apvts.getRawParameterValue ("transpose")->load();
     s.steps     = (int) apvts.getRawParameterValue ("steps")->load();
+    s.offset    = (int) apvts.getRawParameterValue ("offset")->load();
     s.key       = (int) apvts.getRawParameterValue ("key")->load();
     s.scale     = (int) apvts.getRawParameterValue ("scale")->load();
     s.inKey     = apvts.getRawParameterValue ("inkey")->load() > 0.5f;

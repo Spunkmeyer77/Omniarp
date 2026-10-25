@@ -132,6 +132,7 @@ public:
         bool hold = false; int algo = 0; float gate = 0.5f, swing = 0.0f;
         int rate = 6, noteRpt = 1, octMode = 0, octRpt = 1;
         int transpose = 0, steps = 0, key = 0, scale = 0;   // steps 0 = full pattern
+        int offset = 0;                                      // pattern start offset in steps
         bool inKey = false;
         bool sameSequence (const Settings& o) const
         { return algo == o.algo && noteRpt == o.noteRpt && octMode == o.octMode && octRpt == o.octRpt
@@ -321,11 +322,12 @@ private:
     }
 
     // STEPS: loop only the first N steps of the sequence (0 = whole sequence).
+    // OFFSET: start the (looped) pattern N steps later; wraps around.
     size_t stepIndex (juce::int64 pos) const
     {
         const auto size = (juce::int64) seq.size();
         const auto len  = cached.steps > 0 ? (juce::int64) cached.steps : size;
-        return (size_t) ((pos % len) % size);
+        return (size_t) (((pos + cached.offset) % len) % size);
     }
 
     void publishPreview (const std::vector<Held>& src)

@@ -398,6 +398,7 @@ MainPanel::MainPanel (OmniarpProcessor& p)
     addKnob (note,      "rate",      "NOTE",      rateNames());
     addKnob (noteRpt,   "noteRpt",   "NOTE RPT",  { "1", "2", "3", "4", "5" });
     addKnob (steps,     "steps",     "STEPS",     {}, "OFF", "16");
+    addKnob (offset,    "offset",    "OFFSET",    {}, "0", "15");
     addKnob (oct,       "oct",       "OCT",       octNames());
     addKnob (octRpt,    "octRpt",    "OCT RPT",   { "1", "2", "3", "4", "5" });
 
@@ -416,7 +417,7 @@ MainPanel::MainPanel (OmniarpProcessor& p)
 
 std::vector<MainPanel::Knob*> MainPanel::knobs()
 {
-    return { &gate, &swing, &note, &noteRpt, &steps, &oct, &octRpt };
+    return { &gate, &swing, &note, &noteRpt, &steps, &offset, &oct, &octRpt };
 }
 
 void MainPanel::addKnob (Knob& k, const String& id, const String& name, StringArray marks,
@@ -455,7 +456,7 @@ void MainPanel::drawKnobLabels (Graphics& g, const Knob& k)
             const bool major = i == 0 || i == n - 1 || i == n / 2;
             g.drawLine (Line<float> (polar (c, R + 6, a), polar (c, R + (major ? 16.0f : 11.0f), a)), major ? 2.0f : 1.2f);
         }
-        const bool wide = k.lowLabel.length() > 1;
+        const bool wide = k.lowLabel.length() > 1 || k.highLabel.length() > 1;
         const float push = wide ? 20.0f : 10.0f, drop = wide ? 0.0f : 10.0f;
         g.setFont (labelFont (wide ? 13.0f : 17.0f));
         g.drawText (k.lowLabel,  Rectangle<float> (40, 20).withCentre (polar (c, R + 24, kStart).translated (-push, drop)), Justification::centred);

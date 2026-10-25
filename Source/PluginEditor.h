@@ -107,7 +107,7 @@ public:
 class MainPanel : public juce::Component
 {
 public:
-    static constexpr int W = 1525, H = 210;
+    static constexpr int W = 1675, H = 210;
     explicit MainPanel (OmniarpProcessor&);
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -135,7 +135,7 @@ private:
     TransposeDisplay transposeDisp;
     LedToggle inKey { "IN KEY" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inKeyAtt;
-    Knob gate, swing, note, noteRpt, steps, oct, octRpt;
+    Knob gate, swing, note, noteRpt, steps, offset, oct, octRpt;
     TitleHotspot title;
     AboutPanel about;
     juce::Image texture;
