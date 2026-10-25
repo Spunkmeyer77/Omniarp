@@ -392,6 +392,8 @@ MainPanel::MainPanel (OmniarpProcessor& p)
     addAndMakeVisible (transposeDisp);
     addAndMakeVisible (inKey);
     inKeyAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "inkey", inKey);
+    addAndMakeVisible (thru);
+    thruAtt = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment> (proc.apvts, "thru", thru);
 
     addKnob (gate,      "gate",      "GATE",      {});
     addKnob (swing,     "swing",     "SWING",     {});
@@ -508,6 +510,7 @@ void MainPanel::paint (Graphics& g)
 void MainPanel::resized()
 {
     holdSwitch.setBounds (14, 46, 48, 112);
+    thru.setBounds (16, 16, 70, 20);
 
     // click zone = exactly the title lettering
     const auto titleW = roundToInt (GlyphArrangement::getStringWidth (labelFont (28), "OMNIARP"));

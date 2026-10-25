@@ -56,9 +56,9 @@ jobs:
           mkdir -p pkgroot/vst3 pkgroot/au
           cp -R "$ART/VST3/Omniarp.vst3" pkgroot/vst3/
           cp -R "$ART/AU/Omniarp.component" pkgroot/au/
-          pkgbuild --root pkgroot/vst3 --identifier com.ticcoross.omniarp.vst3 --version 1.5.0 \
+          pkgbuild --root pkgroot/vst3 --identifier com.ticcoross.omniarp.vst3 --version 1.6.0 \
                    --install-location "/Library/Audio/Plug-Ins/VST3" vst3.pkg
-          pkgbuild --root pkgroot/au --identifier com.ticcoross.omniarp.au --version 1.5.0 \
+          pkgbuild --root pkgroot/au --identifier com.ticcoross.omniarp.au --version 1.6.0 \
                    --install-location "/Library/Audio/Plug-Ins/Components" au.pkg
           productbuild --package vst3.pkg --package au.pkg Omniarp-Mac.pkg
 
@@ -100,12 +100,12 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.5.0
-          name: Omniarp 1.5.0
+          tag_name: v1.6.0
+          name: Omniarp 1.6.0
           target_commitish: ${{ github.sha }}
           make_latest: true
           body: |
-            Omniarp 1.5.0 by Ticco Ross - new OFFSET knob: start the pattern from a later step (works with STEPS).
+            Omniarp 1.6.0 by Ticco Ross - new THRU button: play notes straight through (e.g. a bass line) while the arp keeps its held chord.
             - **Mac**: Omniarp-Mac.pkg (AU + VST3, Apple Silicon and Intel)
             - **Windows**: Omniarp-Windows-VST3.zip
             - **Linux**: Omniarp-Linux.tar.gz (VST3 + LV2)

@@ -27,6 +27,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OmniarpProcessor::createLayo
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "key", 1 },   "Key",   tross::keyNames(), 0));
     p.push_back (std::make_unique<AudioParameterChoice> (ParameterID { "scale", 1 }, "Scale", tross::scaleNames(), 0));
     p.push_back (std::make_unique<AudioParameterBool>   (ParameterID { "inkey", 1 }, "In Key", false));
+    p.push_back (std::make_unique<AudioParameterBool>   (ParameterID { "thru", 1 },  "Thru",   false));
     return { p.begin(), p.end() };
 }
 
@@ -49,6 +50,7 @@ void OmniarpProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mid
     s.key       = (int) apvts.getRawParameterValue ("key")->load();
     s.scale     = (int) apvts.getRawParameterValue ("scale")->load();
     s.inKey     = apvts.getRawParameterValue ("inkey")->load() > 0.5f;
+    s.thru      = apvts.getRawParameterValue ("thru")->load() > 0.5f;
 
     double bpm = 120.0, ppq = 0.0;
     bool playing = false;

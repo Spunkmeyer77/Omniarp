@@ -134,6 +134,7 @@ public:
         int transpose = 0, steps = 0, key = 0, scale = 0;   // steps 0 = full pattern
         int offset = 0;                                      // pattern start offset in steps
         bool inKey = false;
+        bool thru = false;   // THRU: played keys go straight out, the arp keeps its chord
         bool sameSequence (const Settings& o) const
         { return algo == o.algo && noteRpt == o.noteRpt && octMode == o.octMode && octRpt == o.octRpt
                  && key == o.key && scale == o.scale; }
@@ -150,7 +151,7 @@ public:
 
     void reset()
     {
-        held.clear(); physical.clear(); sounding.clear(); seq.clear(); previewCount.store (0);
+        held.clear(); physical.clear(); thruNotes.clear(); sounding.clear(); seq.clear(); previewCount.store (0);
         seqPos = 0; lastTrigQ = -1.0e9; lastEndQ = -1.0e9; internalQ = 0.0; dirty = true;
     }
 
@@ -162,6 +163,25 @@ public:
         for (const auto m : midi)
         {
             const auto msg = m.getMessage();
+
+            // THRU: new keys bypass the arp. Their note-offs always follow, even if THRU is switched off meanwhile.
+            if (msg.isNoteOn() && s.thru)
+            {
+                thruNotes.push_back (msg.getNoteNumber());
+                out.addEvent (msg, m.samplePosition);
+                continue;
+            }
+            if (msg.isNoteOff())
+            {
+                auto it = std::find (thruNotes.begin(), thruNotes.end(), msg.getNoteNumber());
+                if (it != thruNotes.end())
+                {
+                    thruNotes.erase (it);
+                    out.addEvent (msg, m.samplePosition);
+                    continue;
+                }
+            }
+
             if (msg.isNoteOn())
             {
                 // With HOLD on, a new chord starts when a key is pressed after all keys were released.
@@ -177,7 +197,7 @@ public:
             }
             else
             {
-                if (msg.isAllNotesOff() || msg.isAllSoundOff()) { held.clear(); physical.clear(); dirty = true; }
+                if (msg.isAllNotesOff() || msg.isAllSoundOff()) { held.clear(); physical.clear(); thruNotes.clear(); dirty = true; }
                 out.addEvent (msg, m.samplePosition);
             }
         }
@@ -357,7 +377,7 @@ private:
     std::vector<Sound> sounding;
     juce::int64 seqPos = 0;
     bool dirty = true, wasHold = false;
-    std::vector<int> physical;
+    std::vector<int> physical, thruNotes;
     Settings cached;
     juce::Random rng;
 };

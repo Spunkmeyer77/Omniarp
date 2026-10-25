@@ -30,7 +30,7 @@ def cover(c, d):
     c.setFillColor(RED); c.setFont("Helvetica", 15)
     c.drawCentredString(A4[0] / 2, A4[1] - 108 * mm, "ADVANCED  MIDI  ARPEGGIATOR")
     c.setFillColor(GOLD); c.setFont("Helvetica", 11)
-    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.5.0")
+    c.drawCentredString(A4[0] / 2, A4[1] - 118 * mm, "USER MANUAL  -  VERSION 1.6.0")
     w = A4[0] - 30 * mm
     c.drawImage(UI, 15 * mm, A4[1] / 2 - 75 * mm, width=w, height=w * 210 / 1675, mask="auto")
     c.setFont("Helvetica-Bold", 12)
@@ -86,6 +86,10 @@ s += [Paragraph("The panel", H1), Image(UI, width=doc.width, height=doc.width * 
       table([("HOLD", "The blue switch latches the chord. With HOLD on, the arp keeps playing after you release the keys. "
                       "Play a new chord (after letting go of all keys) to replace it; keys added while others are still down join the chord. "
                       "Turning HOLD off releases any latched notes you are no longer holding."),
+             ("THRU", "The small light above HOLD. When it is on, the keys you play go straight to your synth as normal notes and the "
+                      "arp keeps playing the chord it already has. Typical use: latch a chord with HOLD, switch THRU on and play a "
+                      "bass line over the arp. To change the arp chord, switch THRU off, play the new chord, then switch THRU on again. "
+                      "Notes started with THRU on always get their note-off, even if you switch THRU off while holding them."),
              ("ALGORITHM", "The red display shows the current pattern. Click it to choose from the list."),
              ("SCALE", "The second red display sets a key and scale (Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, Harmonic Minor, "
                        "Pentatonic Major/Minor, Blues). When a scale is on, Omniarp plays every note of that scale from your lowest held note "

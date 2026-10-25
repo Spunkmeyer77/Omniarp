@@ -135,6 +135,8 @@ private:
     TransposeDisplay transposeDisp;
     LedToggle inKey { "IN KEY" };
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> inKeyAtt;
+    LedToggle thru { "THRU" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> thruAtt;
     Knob gate, swing, note, noteRpt, steps, offset, oct, octRpt;
     TitleHotspot title;
     AboutPanel about;
